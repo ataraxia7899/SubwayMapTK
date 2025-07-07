@@ -22,28 +22,52 @@ center_btn.place(relx=0.5, rely=0.5, anchor='center')
 img_btn = Button(canvas, text="이미지 버튼")
 img_btn_id = None
 
-# 이미지 내 특정 좌표에 버튼 추가 (2044, 1571)
-img_btn2 = Button(canvas, text="", width=2, height=1)
-img_btn2_id = None
-img_btn2_img_x = 2044
-img_btn2_img_y = 1571
+# 여러 좌표에 버튼을 쉽게 추가할 수 있도록 리스트로 관리
+button_coords = [
+    (2044, 1571),
+    # 여기에 원하는 좌표를 추가하세요. 예: (x, y),
+]
+
+# 버튼 텍스트 추가
+# button_coords = [
+#     (2044, 1571, "여기에 텍스트!"),
+#     (1000, 800, "다른 버튼"),
+#     (500, 500, ""),  # 텍스트 없는 버튼
+# ]
+
+img_btns = []  # (Button, x, y) 튜플
+img_btn_ids = []
+
+def create_image_buttons():
+    for x, y in button_coords:
+        btn = Button(canvas, text="", width=2, height=1)
+        btn_id = canvas.create_window(0, 0, window=btn)  # 임시 좌표
+        img_btns.append((btn, x, y))
+        img_btn_ids.append(btn_id)
+
+# 버튼 텍스트 추가
+# def create_image_buttons():
+#     for x, y, txt in button_coords:
+#         btn = Button(canvas, text=txt, width=2, height=1)
+#         btn_id = canvas.create_window(0, 0, window=btn)  # 임시 좌표
+#         img_btns.append((btn, x, y))
+#         img_btn_ids.append(btn_id)
+
+def update_all_img_btns():
+    w, h = img.size
+    img_cx, img_cy = canvas.coords(img_id)
+    for idx, (btn, bx, by) in enumerate(img_btns):
+        dx = (bx - w / 2) * img_scale
+        dy = (by - h / 2) * img_scale
+        btn_canvas_x = img_cx + dx
+        btn_canvas_y = img_cy + dy
+        canvas.coords(img_btn_ids[idx], btn_canvas_x, btn_canvas_y)
 
 def update_img_btn_pos():
     if img_btn_id is not None:
         img_cx, img_cy = canvas.coords(img_id)
         canvas.coords(img_btn_id, img_cx, img_cy)
-    update_img_btn2_pos()
-
-def update_img_btn2_pos():
-    # 이미지 내 (img_btn2_img_x, img_btn2_img_y) 좌표를 캔버스 좌표로 변환
-    w, h = img.size
-    img_cx, img_cy = canvas.coords(img_id)
-    dx = (img_btn2_img_x - w / 2) * img_scale
-    dy = (img_btn2_img_y - h / 2) * img_scale
-    btn2_canvas_x = img_cx + dx
-    btn2_canvas_y = img_cy + dy
-    if img_btn2_id is not None:
-        canvas.coords(img_btn2_id, btn2_canvas_x, btn2_canvas_y)
+    update_all_img_btns()
 
 # 이미지 중앙 좌표 계산 (초기 이미지 크기 기준)
 img_center_x = canvas.winfo_reqwidth() // 2
@@ -74,10 +98,8 @@ def place_image_center():
 img_id = canvas.create_image(0, 0, anchor=CENTER, image=img_tk)
 canvas.update()  # 실제 크기 반영
 place_image_center()
-
-# 버튼 생성 및 초기 위치 (이미지 중앙 배치 이후!)
-img_btn2_id = canvas.create_window(0, 0, window=img_btn2)  # 임시 좌표
-update_img_btn2_pos()
+create_image_buttons()
+update_all_img_btns()
 
 # 이미지 이동 관련 변수
 img_offset_x = 0
