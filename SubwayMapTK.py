@@ -40,9 +40,9 @@ img_btn_ids = []
 
 def create_image_buttons():
     for x, y in button_coords:
-        btn = Button(canvas, text="", width=2, height=1)
-        btn_id = canvas.create_window(0, 0, window=btn)  # 임시 좌표
-        img_btns.append((btn, x, y))
+        # 투명한 캔버스 윈도우(실제 위젯 없음)
+        btn_id = canvas.create_rectangle(0, 0, 20, 20, outline='', fill='', tags='invisible_btn')
+        img_btns.append((None, x, y))
         img_btn_ids.append(btn_id)
 
 # 버튼 텍스트 추가
@@ -56,12 +56,15 @@ def create_image_buttons():
 def update_all_img_btns():
     w, h = img.size
     img_cx, img_cy = canvas.coords(img_id)
-    for idx, (btn, bx, by) in enumerate(img_btns):
+    for idx, (_, bx, by) in enumerate(img_btns):
         dx = (bx - w / 2) * img_scale
         dy = (by - h / 2) * img_scale
         btn_canvas_x = img_cx + dx
         btn_canvas_y = img_cy + dy
-        canvas.coords(img_btn_ids[idx], btn_canvas_x, btn_canvas_y)
+        # 사각형 위치 갱신 (20x20 크기, 필요시 조정)
+        canvas.coords(img_btn_ids[idx],
+                      btn_canvas_x-10, btn_canvas_y-10,
+                      btn_canvas_x+10, btn_canvas_y+10)
 
 def update_img_btn_pos():
     if img_btn_id is not None:
@@ -422,5 +425,16 @@ while 1:
 print("\n","[",start,"->",end,"]")
 print("Route : ",routing[end]['route'])
 print("최단거리 : ",routing[end]['shortestDist'])
+
+# 클릭 이벤트 바인딩
+def on_invisible_btn_click(event):
+    # 클릭된 좌표가 버튼 영역 안에 있는지 확인
+    for idx, btn_id in enumerate(img_btn_ids):
+        coords = canvas.coords(btn_id)
+        if coords[0] <= event.x <= coords[2] and coords[1] <= event.y <= coords[3]:
+            print(f"투명 버튼 {idx} 클릭됨!")
+            break
+
+canvas.tag_bind('invisible_btn', '<Button-1>', on_invisible_btn_click)
 
 root.mainloop()
