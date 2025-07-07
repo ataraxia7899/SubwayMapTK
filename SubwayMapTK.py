@@ -22,11 +22,28 @@ center_btn.place(relx=0.5, rely=0.5, anchor='center')
 img_btn = Button(canvas, text="이미지 버튼")
 img_btn_id = None
 
+# 이미지 내 특정 좌표에 버튼 추가 (2044, 1571)
+img_btn2 = Button(canvas, text="", width=2, height=1)
+img_btn2_id = None
+img_btn2_img_x = 2044
+img_btn2_img_y = 1571
+
 def update_img_btn_pos():
-    # 이미지 중심 좌표에 버튼 위치
     if img_btn_id is not None:
         img_cx, img_cy = canvas.coords(img_id)
         canvas.coords(img_btn_id, img_cx, img_cy)
+    update_img_btn2_pos()
+
+def update_img_btn2_pos():
+    # 이미지 내 (img_btn2_img_x, img_btn2_img_y) 좌표를 캔버스 좌표로 변환
+    w, h = img.size
+    img_cx, img_cy = canvas.coords(img_id)
+    dx = (img_btn2_img_x - w / 2) * img_scale
+    dy = (img_btn2_img_y - h / 2) * img_scale
+    btn2_canvas_x = img_cx + dx
+    btn2_canvas_y = img_cy + dy
+    if img_btn2_id is not None:
+        canvas.coords(img_btn2_id, btn2_canvas_x, btn2_canvas_y)
 
 # 이미지 중앙 좌표 계산 (초기 이미지 크기 기준)
 img_center_x = canvas.winfo_reqwidth() // 2
@@ -57,6 +74,10 @@ def place_image_center():
 img_id = canvas.create_image(0, 0, anchor=CENTER, image=img_tk)
 canvas.update()  # 실제 크기 반영
 place_image_center()
+
+# 버튼 생성 및 초기 위치 (이미지 중앙 배치 이후!)
+img_btn2_id = canvas.create_window(0, 0, window=img_btn2)  # 임시 좌표
+update_img_btn2_pos()
 
 # 이미지 이동 관련 변수
 img_offset_x = 0
@@ -331,9 +352,10 @@ landscape = {
     '덕하' : {'개운포': 1, '망양': 1},
     '망양' : {'덕하': 1, '남창': 1},
     '남창' : {'망양': 1, '서생': 1},
-    '서생' : {'남창': 1, '뭘내': 1},
-    '뭘내' : {'서생': 1, '좌천': 1},
-    '일광' : {'좌천': 1, '동해기장': 1},
+    '서생' : {'남창': 1, '월내': 1},
+    '월내' : {'서생': 1, '동해좌천': 1},
+    '동해좌천' : {'월내': 1, '일광': 1},
+    '일광' : {'동해좌천': 1, '동해기장': 1},
     '동해기장' : {'일광': 1, '오시리아': 1},
     '오시리아' : {'동해기장': 1, '송정': 1},
     '송정' : {'오시리아': 1, '신해운대': 1},
@@ -343,8 +365,8 @@ landscape = {
     '부산원동' : {'재송': 1, '안락': 1},
     '안락' : {'부산원동': 1, '동해동래': 1},
     '동해동래' : {'안락': 1, '교대': 1},
-    '거제해맞이' : {'거제': 1, '부산': 1},
-    '부산' : {'거제해맞이': 1}
+    '거제해맞이' : {'거제': 1, '동해부전': 1},
+    '동해부전' : {'거제해맞이': 1}
 }
 
 routing = {}
