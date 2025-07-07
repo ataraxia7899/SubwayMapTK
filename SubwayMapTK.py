@@ -1,7 +1,177 @@
 import copy
+from tkinter import *
+from PIL import Image, ImageTk
 
-start = '집'
-end = '은행'
+root = Tk()
+root.title("Subway Map")
+root.geometry("640x480")
+
+img = Image.open("./Image/subway.png")
+img_scale = 1.0
+img_min_scale = 0.2
+img_max_scale = 3.0
+
+canvas = Canvas(root, width=640, height=480, bg='white')
+canvas.pack(fill=BOTH, expand=True)
+
+# 중앙에 아무 기능 없는 버튼 추가
+center_btn = Button(root, text="중앙 버튼")
+center_btn.place(relx=0.5, rely=0.5, anchor='center')
+
+# 이미지 정 가운데에 버튼 추가
+img_btn = Button(canvas, text="이미지 버튼")
+img_btn_id = None
+
+def update_img_btn_pos():
+    # 이미지 중심 좌표에 버튼 위치
+    if img_btn_id is not None:
+        img_cx, img_cy = canvas.coords(img_id)
+        canvas.coords(img_btn_id, img_cx, img_cy)
+
+# 이미지 중앙 좌표 계산 (초기 이미지 크기 기준)
+img_center_x = canvas.winfo_reqwidth() // 2
+img_center_y = canvas.winfo_reqheight() // 2
+img_btn_id = canvas.create_window(img_center_x, img_center_y, window=img_btn)
+
+img_tk = ImageTk.PhotoImage(img)
+
+# 중앙 좌표 계산 함수
+def get_center_coords(img_w, img_h):
+    c_w = canvas.winfo_width()
+    c_h = canvas.winfo_height()
+    x = c_w // 2
+    y = c_h // 2
+    return x, y
+
+# 초기 중앙 배치
+def place_image_center():
+    global img_id, img_tk, img_scale, img_offset_x, img_offset_y
+    w, h = img.size
+    new_w = int(w * img_scale)
+    new_h = int(h * img_scale)
+    x, y = get_center_coords(new_w, new_h)
+    canvas.coords(img_id, x, y)
+    img_offset_x = x
+    img_offset_y = y
+
+img_id = canvas.create_image(0, 0, anchor=CENTER, image=img_tk)
+canvas.update()  # 실제 크기 반영
+place_image_center()
+
+# 이미지 이동 관련 변수
+img_offset_x = 0
+img_offset_y = 0
+img_drag_start_x = 0
+img_drag_start_y = 0
+
+def update_image(center_x=None, center_y=None, scale_from=None):
+    global img_tk, img_id, img_offset_x, img_offset_y, img_scale
+    w, h = img.size
+    new_w = int(w * img_scale)
+    new_h = int(h * img_scale)
+    resized = img.resize((new_w, new_h), Image.LANCZOS)
+    img_tk = ImageTk.PhotoImage(resized)
+    canvas.itemconfig(img_id, image=img_tk)
+    canvas.config(scrollregion=(0, 0, new_w, new_h))
+    # 확대/축소 기준점 보정
+    if center_x is not None and center_y is not None and scale_from is not None:
+        img_cx, img_cy = canvas.coords(img_id)
+        new_img_cx = center_x - (center_x - img_cx) * (img_scale / scale_from)
+        new_img_cy = center_y - (center_y - img_cy) * (img_scale / scale_from)
+        canvas.coords(img_id, new_img_cx, new_img_cy)
+        img_offset_x = new_img_cx
+        img_offset_y = new_img_cy
+    else:
+        x, y = get_center_coords(new_w, new_h)
+        canvas.coords(img_id, x, y)
+        img_offset_x = x
+        img_offset_y = y
+    update_img_btn_pos()
+
+def on_configure(event):
+    w, h = img.size
+    new_w = int(w * img_scale)
+    new_h = int(h * img_scale)
+    x, y = get_center_coords(new_w, new_h)
+    canvas.coords(img_id, x, y)
+    global img_offset_x, img_offset_y
+    img_offset_x = x
+    img_offset_y = y
+    update_img_btn_pos()
+
+def on_mousewheel(event):
+    global img_scale
+    old_scale = img_scale
+    if event.delta > 0:
+        img_scale = min(img_max_scale, img_scale * 1.1)
+    else:
+        img_scale = max(img_min_scale, img_scale * 0.9)
+    # 마우스 위치를 기준으로 확대/축소
+    canvas_x = event.x
+    canvas_y = event.y
+    update_image(center_x=canvas_x, center_y=canvas_y, scale_from=old_scale)
+
+def on_button_press(event):
+    global img_drag_start_x, img_drag_start_y
+    img_drag_start_x = event.x
+    img_drag_start_y = event.y
+
+def on_drag(event):
+    global img_offset_x, img_offset_y, img_drag_start_x, img_drag_start_y
+    dx = event.x - img_drag_start_x
+    dy = event.y - img_drag_start_y
+    img_offset_x += dx
+    img_offset_y += dy
+    canvas.move(img_id, dx, dy)
+    img_drag_start_x = event.x
+    img_drag_start_y = event.y
+    update_img_btn_pos()
+
+# 마우스 휠 확대/축소
+root.bind("<MouseWheel>", on_mousewheel)
+# 마우스 드래그 이동
+canvas.bind('<ButtonPress-1>', on_button_press)
+canvas.bind('<B1-Motion>', on_drag)
+# 창 크기 변경 시 중앙 정렬
+canvas.bind('<Configure>', on_configure)
+
+def get_mouse_canvas_coords():
+    # 현재 마우스 위치를 캔버스 좌표계로 변환
+    x = root.winfo_pointerx() - canvas.winfo_rootx()
+    y = root.winfo_pointery() - canvas.winfo_rooty()
+    # 캔버스 영역 밖이면 중앙 반환
+    if not (0 <= x < canvas.winfo_width() and 0 <= y < canvas.winfo_height()):
+        x = canvas.winfo_width() // 2
+        y = canvas.winfo_height() // 2
+    return x, y
+
+def zoom_in():
+    global img_scale
+    old_scale = img_scale
+    img_scale = min(img_max_scale, img_scale * 1.1)
+    # 캔버스 중앙 기준 확대
+    c_w = canvas.winfo_width() // 2
+    c_h = canvas.winfo_height() // 2
+    update_image(center_x=c_w, center_y=c_h, scale_from=old_scale)
+
+def zoom_out():
+    global img_scale
+    old_scale = img_scale
+    img_scale = max(img_min_scale, img_scale * 0.9)
+    # 캔버스 중앙 기준 축소
+    c_w = canvas.winfo_width() // 2
+    c_h = canvas.winfo_height() // 2
+    update_image(center_x=c_w, center_y=c_h, scale_from=old_scale)
+
+# 오른쪽 하단 +, - 버튼 추가
+plus_btn = Button(root, text='+', command=zoom_in)
+minus_btn = Button(root, text='-', command=zoom_out)
+# 오른쪽 하단에 세로로 배치 (여백 20, 버튼 높이 40 기준)
+plus_btn.place(relx=1.0, rely=1.0, x=-20, y=-80, anchor='se')
+minus_btn.place(relx=1.0, rely=1.0, x=-20, y=-30, anchor='se')
+
+start = '노포'
+end = '벡스코'
 print("-------------[",start,"-->",end,"]--------------")
 
 landscape = {
@@ -20,7 +190,7 @@ landscape = {
     "시청" : {'연산': 1, '양정': 1},
     "양정" : {'시청': 1, '부전': 1},
     "부전" : {'서면': 1, '양정': 1},
-    "서면" : {'부전': 1, '전포': 1, '부암': 1, '범내골': 1},
+    "서면" : {'부전': 1, '전포': 1, '부암': 1, '범내골': 1},    
     "범내골" : {'서면': 1, '범일': 1},
     "범일" : {'범내골': 1, '좌천': 1},
     "좌천" : {'부산진': 1, '범일': 1},
@@ -185,3 +355,5 @@ while 1:
 print("\n","[",start,"->",end,"]")
 print("Route : ",routing[end]['route'])
 print("최단거리 : ",routing[end]['shortestDist'])
+
+root.mainloop()
