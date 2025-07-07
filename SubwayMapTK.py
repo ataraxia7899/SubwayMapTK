@@ -64,6 +64,10 @@ img_offset_y = 0
 img_drag_start_x = 0
 img_drag_start_y = 0
 
+# 클릭 시작 좌표 저장용 변수
+click_start_x = 0
+click_start_y = 0
+
 def update_image(center_x=None, center_y=None, scale_from=None):
     global img_tk, img_id, img_offset_x, img_offset_y, img_scale
     w, h = img.size
@@ -112,9 +116,11 @@ def on_mousewheel(event):
     update_image(center_x=canvas_x, center_y=canvas_y, scale_from=old_scale)
 
 def on_button_press(event):
-    global img_drag_start_x, img_drag_start_y
+    global img_drag_start_x, img_drag_start_y, click_start_x, click_start_y
     img_drag_start_x = event.x
     img_drag_start_y = event.y
+    click_start_x = event.x
+    click_start_y = event.y
 
 def on_drag(event):
     global img_offset_x, img_offset_y, img_drag_start_x, img_drag_start_y
@@ -127,11 +133,28 @@ def on_drag(event):
     img_drag_start_y = event.y
     update_img_btn_pos()
 
+def on_button_release(event):
+    global click_start_x, click_start_y
+    dx = event.x - click_start_x
+    dy = event.y - click_start_y
+    if abs(dx) < 5 and abs(dy) < 5:
+        # 클릭으로 간주, 이미지 좌표 출력
+        img_cx, img_cy = canvas.coords(img_id)
+        ddx = event.x - img_cx
+        ddy = event.y - img_cy
+        w, h = img.size
+        img_x = w / 2 + ddx / img_scale
+        img_y = h / 2 + ddy / img_scale
+        img_x = int(round(img_x))
+        img_y = int(round(img_y))
+        print(f"이미지 내 좌표: ({img_x}, {img_y})")
+
 # 마우스 휠 확대/축소
 root.bind("<MouseWheel>", on_mousewheel)
 # 마우스 드래그 이동
 canvas.bind('<ButtonPress-1>', on_button_press)
 canvas.bind('<B1-Motion>', on_drag)
+canvas.bind('<ButtonRelease-1>', on_button_release)
 # 창 크기 변경 시 중앙 정렬
 canvas.bind('<Configure>', on_configure)
 
