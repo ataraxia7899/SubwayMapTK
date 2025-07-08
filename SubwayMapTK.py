@@ -203,13 +203,13 @@ class SubwayApp:
 
     def update_station_status(self):
         if self.start and self.end:
-            self.station_status_var.set(f"출발역: {self.start}     -->     도착역: {self.end}")
+            self.station_status_var.set(f"출발역: {self.start}     ➔     도착역: {self.end}")
         elif self.start:
-            self.station_status_var.set(f"출발역: {self.start}     -->     도착역: (미지정)")
+            self.station_status_var.set(f"출발역: {self.start}     ➔     도착역: (미지정)")
         elif self.end:
-            self.station_status_var.set(f"출발역: (미지정)     -->     도착역: {self.end}")
+            self.station_status_var.set(f"출발역: (미지정)     ➔     도착역: {self.end}")
         else:
-            self.station_status_var.set("출발역: (미지정)     -->     도착역: (미지정)")
+            self.station_status_var.set("출발역: (미지정)     ➔     도착역: (미지정)")
 
     # --- 경로 탐색 및 안내 ---
     def show_route_popup(self):
