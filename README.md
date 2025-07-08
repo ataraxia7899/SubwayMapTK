@@ -14,7 +14,7 @@ SubwayMapTK는 파이썬 Tkinter와 Pillow를 활용하여 지하철 노선도 �
 
 📦 SubwayMapTK <br>
 ├── subway.jpg # 지하철 노선도 이미지 파일 <br>
-├── SubwayMapTK.py # 메인 파이썬 GUI 코드
+└── SubwayMapTK.py # 메인 파이썬 GUI 코드
 
 ## 🏃‍♂️ 설치 및 실행 방법
 
