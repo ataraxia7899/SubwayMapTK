@@ -513,14 +513,13 @@ class SubwayApp:
         if not self.start or not self.end:
             popup = Toplevel(self.root)
             popup.title('경로 안내')
-            popup.geometry("380x120")
             popup.configure(bg='#f8f9fa')
+            ttk.Label(popup, text='출발역과 도착역을 모두 선택하세요.', style='TLabel').pack(padx=20, pady=20)
+            ttk.Button(popup, text='확인', style='TButton', command=popup.destroy).pack(pady=10)
             popup.update_idletasks()
             x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
             y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
             popup.geometry(f"+{x}+{y}")
-            ttk.Label(popup, text='출발역과 도착역을 모두 선택하세요.', style='TLabel').pack(padx=20, pady=20)
-            ttk.Button(popup, text='확인', style='TButton', command=popup.destroy).pack(pady=10)
             return
         # routing 초기화
         for place in self.routing.keys():
@@ -540,12 +539,7 @@ class SubwayApp:
         dist = self.routing[self.end]['shortestDist']
         popup = Toplevel(self.root)
         popup.title('경로 안내')
-        popup.geometry("380x120")
         popup.configure(bg='#f8f9fa')
-        popup.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
-        popup.geometry(f"+{x}+{y}")
         if route:
             route_str = ' → '.join(route)
             ttk.Label(popup, text=f'[{self.start} → {self.end}]', style='TLabel').pack(pady=5)
@@ -554,6 +548,10 @@ class SubwayApp:
         else:
             ttk.Label(popup, text='경로를 찾을 수 없습니다.', style='TLabel').pack(padx=20, pady=20)
         ttk.Button(popup, text='확인', style='TButton', command=popup.destroy).pack(pady=10)
+        popup.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
+        popup.geometry(f"+{x}+{y}")
 
     def visit_place(self, visit):
         self.routing[visit]['visited'] = 1
