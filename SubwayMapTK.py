@@ -18,22 +18,12 @@ canvas.pack(fill=BOTH, expand=True)
 center_btn = Button(root, text="중앙 버튼")
 center_btn.place(relx=0.5, rely=0.5, anchor='center')
 
-# 이미지 정 가운데에 버튼 추가
-img_btn = Button(canvas, text="이미지 버튼")
-img_btn_id = None
-
 # 여러 좌표에 버튼을 쉽게 추가할 수 있도록 리스트로 관리
 button_coords = [
     (2044, 1571),
+    (2044, 590),
     # 여기에 원하는 좌표를 추가하세요. 예: (x, y),
 ]
-
-# 버튼 텍스트 추가
-# button_coords = [
-#     (2044, 1571, "여기에 텍스트!"),
-#     (1000, 800, "다른 버튼"),
-#     (500, 500, ""),  # 텍스트 없는 버튼
-# ]
 
 img_btns = []  # (Button, x, y) 튜플
 img_btn_ids = []
@@ -44,14 +34,6 @@ def create_image_buttons():
         btn_id = canvas.create_rectangle(0, 0, 20, 20, outline='', fill='', tags='invisible_btn')
         img_btns.append((None, x, y))
         img_btn_ids.append(btn_id)
-
-# 버튼 텍스트 추가
-# def create_image_buttons():
-#     for x, y, txt in button_coords:
-#         btn = Button(canvas, text=txt, width=2, height=1)
-#         btn_id = canvas.create_window(0, 0, window=btn)  # 임시 좌표
-#         img_btns.append((btn, x, y))
-#         img_btn_ids.append(btn_id)
 
 def update_all_img_btns():
     w, h = img.size
@@ -66,19 +48,6 @@ def update_all_img_btns():
                       btn_canvas_x-10, btn_canvas_y-10,
                       btn_canvas_x+10, btn_canvas_y+10)
 
-def update_img_btn_pos():
-    if img_btn_id is not None:
-        img_cx, img_cy = canvas.coords(img_id)
-        canvas.coords(img_btn_id, img_cx, img_cy)
-    update_all_img_btns()
-
-# 이미지 중앙 좌표 계산 (초기 이미지 크기 기준)
-img_center_x = canvas.winfo_reqwidth() // 2
-img_center_y = canvas.winfo_reqheight() // 2
-img_btn_id = canvas.create_window(img_center_x, img_center_y, window=img_btn)
-
-img_tk = ImageTk.PhotoImage(img)
-
 # 중앙 좌표 계산 함수
 def get_center_coords(img_w, img_h):
     c_w = canvas.winfo_width()
@@ -89,15 +58,14 @@ def get_center_coords(img_w, img_h):
 
 # 초기 중앙 배치
 def place_image_center():
-    global img_id, img_tk, img_scale, img_offset_x, img_offset_y
+    global img_id, img_tk, img_scale
     w, h = img.size
     new_w = int(w * img_scale)
     new_h = int(h * img_scale)
     x, y = get_center_coords(new_w, new_h)
     canvas.coords(img_id, x, y)
-    img_offset_x = x
-    img_offset_y = y
 
+img_tk = ImageTk.PhotoImage(img)
 img_id = canvas.create_image(0, 0, anchor=CENTER, image=img_tk)
 canvas.update()  # 실제 크기 반영
 place_image_center()
@@ -105,8 +73,6 @@ create_image_buttons()
 update_all_img_btns()
 
 # 이미지 이동 관련 변수
-img_offset_x = 0
-img_offset_y = 0
 img_drag_start_x = 0
 img_drag_start_y = 0
 
@@ -115,7 +81,7 @@ click_start_x = 0
 click_start_y = 0
 
 def update_image(center_x=None, center_y=None, scale_from=None):
-    global img_tk, img_id, img_offset_x, img_offset_y, img_scale
+    global img_tk, img_id, img_scale
     w, h = img.size
     new_w = int(w * img_scale)
     new_h = int(h * img_scale)
@@ -129,14 +95,10 @@ def update_image(center_x=None, center_y=None, scale_from=None):
         new_img_cx = center_x - (center_x - img_cx) * (img_scale / scale_from)
         new_img_cy = center_y - (center_y - img_cy) * (img_scale / scale_from)
         canvas.coords(img_id, new_img_cx, new_img_cy)
-        img_offset_x = new_img_cx
-        img_offset_y = new_img_cy
     else:
         x, y = get_center_coords(new_w, new_h)
         canvas.coords(img_id, x, y)
-        img_offset_x = x
-        img_offset_y = y
-    update_img_btn_pos()
+    update_all_img_btns()
 
 def on_configure(event):
     w, h = img.size
@@ -144,10 +106,7 @@ def on_configure(event):
     new_h = int(h * img_scale)
     x, y = get_center_coords(new_w, new_h)
     canvas.coords(img_id, x, y)
-    global img_offset_x, img_offset_y
-    img_offset_x = x
-    img_offset_y = y
-    update_img_btn_pos()
+    update_all_img_btns()
 
 def on_mousewheel(event):
     global img_scale
@@ -169,15 +128,13 @@ def on_button_press(event):
     click_start_y = event.y
 
 def on_drag(event):
-    global img_offset_x, img_offset_y, img_drag_start_x, img_drag_start_y
+    global img_drag_start_x, img_drag_start_y
     dx = event.x - img_drag_start_x
     dy = event.y - img_drag_start_y
-    img_offset_x += dx
-    img_offset_y += dy
     canvas.move(img_id, dx, dy)
     img_drag_start_x = event.x
     img_drag_start_y = event.y
-    update_img_btn_pos()
+    update_all_img_btns()
 
 def on_button_release(event):
     global click_start_x, click_start_y
@@ -203,16 +160,6 @@ canvas.bind('<B1-Motion>', on_drag)
 canvas.bind('<ButtonRelease-1>', on_button_release)
 # 창 크기 변경 시 중앙 정렬
 canvas.bind('<Configure>', on_configure)
-
-def get_mouse_canvas_coords():
-    # 현재 마우스 위치를 캔버스 좌표계로 변환
-    x = root.winfo_pointerx() - canvas.winfo_rootx()
-    y = root.winfo_pointery() - canvas.winfo_rooty()
-    # 캔버스 영역 밖이면 중앙 반환
-    if not (0 <= x < canvas.winfo_width() and 0 <= y < canvas.winfo_height()):
-        x = canvas.winfo_width() // 2
-        y = canvas.winfo_height() // 2
-    return x, y
 
 def zoom_in():
     global img_scale
