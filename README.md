@@ -12,9 +12,19 @@ SubwayMapTK는 파이썬 Tkinter와 Pillow를 활용하여 지하철 노선도 �
 
 ## 📂 프로젝트 구조
 
-📦 SubwayMapTK <br>
-├── subway.jpg # 지하철 노선도 이미지 파일 <br>
-├── SubwayMapTK.py # 메인 파이썬 GUI 코드
+📦 SubwayMapTK  
+├── Image/  
+│ └── subway.png # 지하철 노선도 이미지 파일  
+├── SubwayMapTK.py # 메인 파이썬 GUI 코드  
+├── SubwayMap/ # 각 노선별 역 정보(그래프) 파이썬 파일  
+│ ├── 1_Orange.py # 1호선(주황) 역 연결 정보  
+│ ├── 2_Green.py # 2호선(초록) 역 연결 정보  
+│ ├── 3_Brown.py # 3호선(갈색) 역 연결 정보  
+│ ├── 4_Blue.py # 4호선(파랑) 역 연결 정보  
+│ ├── Busan_Purple.py # 부산김해경전철(보라) 역 연결 정보  
+│ └── EastSea_White.py # 동해선(하양) 역 연결 정보  
+├── .gitignore # Git 버전관리 제외 파일 목록  
+└── README.md # 프로젝트 설명 파일
 
 ## 🏃‍♂️ 설치 및 실행 방법
 
