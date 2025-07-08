@@ -11,13 +11,25 @@ root.geometry("640x480")
 top_frame = Frame(root, bg="#f0f0f0")
 top_frame.pack(side=TOP, fill=X, pady=2)
 
+center_frame = Frame(top_frame, bg="#f0f0f0")
+center_frame.pack(side=TOP, fill=X, expand=True)
+
+# 출발역/도착역 변수 초기화
+start = ''
+end = ''
+
 station_status_var = StringVar()
-station_status_var.set("출발역: 노포   도착역: 벡스코")
-station_status_label = Label(top_frame, textvariable=station_status_var, font=("맑은 고딕", 12, "bold"), bg="#f0f0f0")
-station_status_label.pack(side=LEFT, padx=10)
+station_status_var.set("출발역: (미지정)     -->     도착역: (미지정)")
+station_status_label = Label(center_frame, textvariable=station_status_var, font=("맑은 고딕", 12, "bold"), bg="#f0f0f0")
+station_status_label.pack(expand=True, anchor='center')
 
 find_route_btn = Button(top_frame, text='길 찾기', command=lambda: show_route_popup())
 find_route_btn.pack(side=RIGHT, padx=10)
+
+# column 0(왼쪽 여백), 1(라벨), 2(버튼) 비율 설정
+top_frame.grid_columnconfigure(0, weight=1)
+top_frame.grid_columnconfigure(1, weight=2)
+top_frame.grid_columnconfigure(2, weight=1)
 
 img = Image.open("./Image/subway.png")
 img_scale = 1.0
@@ -339,12 +351,6 @@ minus_btn = Button(root, text='-', command=zoom_out)
 plus_btn.place(relx=1.0, rely=1.0, x=-20, y=-80, anchor='se')
 minus_btn.place(relx=1.0, rely=1.0, x=-20, y=-30, anchor='se')
 
-# (하단 길찾기 버튼 관련 코드 완전 삭제)
-
-start = '노포'
-end = '벡스코'
-print("-------------[",start,"-->",end,"]--------------")
-
 landscape = {
     '노포': {'범어사':1},
     "범어사":{'노포': 1, '남산': 1},
@@ -508,25 +514,6 @@ def visitPlace(visit):
             routing[togo]['route'] = copy.deepcopy(routing[visit]['route'])
             routing[togo]['route'].append(visit)
 
-visitPlace(start)
-
-while 1:
-    minDist = max(routing.values(),key = lambda x:x['shortestDist'])['shortestDist']
-    toVisit = ''
-    for name, search in routing.items():
-        if 0 < search['shortestDist'] <=minDist and not search['visited']:
-            minDist = search['shortestDist']
-            toVisit=name
-    if toVisit == '':
-        break
-    visitPlace(toVisit)
-    print("["+toVisit+"]")
-    print("거리 : ",minDist)
-
-print("\n","[",start,"->",end,"]")
-print("Route : ",routing[end]['route'])
-print("최단거리 : ",routing[end]['shortestDist'])
-
 # 클릭 이벤트 바인딩
 def on_invisible_btn_click(event):
     for idx, btn_id in enumerate(img_btn_ids):
@@ -603,6 +590,13 @@ def show_route_popup():
     Button(popup, text='확인', command=popup.destroy).pack(pady=10)
 
 def update_station_status():
-    station_status_var.set(f"출발역: {start}   도착역: {end}")
+    if start and end:
+        station_status_var.set(f"출발역: {start}     -->     도착역: {end}")
+    elif start:
+        station_status_var.set(f"출발역: {start}     -->     도착역: (미지정)")
+    elif end:
+        station_status_var.set(f"출발역: (미지정)     -->     도착역: {end}")
+    else:
+        station_status_var.set("출발역: (미지정)     -->     도착역: (미지정)")
 
 root.mainloop()
