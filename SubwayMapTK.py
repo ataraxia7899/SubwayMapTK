@@ -6,6 +6,12 @@ root = Tk()
 root.title("Subway Map")
 root.geometry("640x480")
 
+# 출발역/도착역 표시용 라벨 추가
+station_status_var = StringVar()
+station_status_var.set("출발역: 노포   도착역: 벡스코")
+station_status_label = Label(root, textvariable=station_status_var, font=("맑은 고딕", 12, "bold"), bg="#f0f0f0")
+station_status_label.pack(side=TOP, fill=X, pady=2)
+
 img = Image.open("./Image/subway.png")
 img_scale = 1.0
 img_min_scale = 0.2
@@ -327,6 +333,10 @@ minus_btn = Button(root, text='-', command=zoom_out)
 plus_btn.place(relx=1.0, rely=1.0, x=-20, y=-80, anchor='se')
 minus_btn.place(relx=1.0, rely=1.0, x=-20, y=-30, anchor='se')
 
+# 길 찾기 버튼 추가
+find_route_btn = Button(root, text='길 찾기', command=lambda: show_route_popup())
+find_route_btn.place(relx=1.0, rely=1.0, x=-80, y=-30, anchor='se')
+
 start = '노포'
 end = '벡스코'
 print("-------------[",start,"-->",end,"]--------------")
@@ -515,14 +525,80 @@ print("최단거리 : ",routing[end]['shortestDist'])
 
 # 클릭 이벤트 바인딩
 def on_invisible_btn_click(event):
-    # 클릭된 좌표가 버튼 영역 안에 있는지 확인
     for idx, btn_id in enumerate(img_btn_ids):
         coords = canvas.coords(btn_id)
         if coords[0] <= event.x <= coords[2] and coords[1] <= event.y <= coords[3]:
-            text = img_btns[idx][0]  # 텍스트 가져오기
-            print(f"{text} 클릭됨!")
+            station = img_btns[idx][0]
+            show_station_select_popup(station)
             break
 
+def show_station_select_popup(station):
+    popup = Toplevel(root)
+    popup.title(f"{station}역 선택")
+    popup.geometry("200x100")
+    # 팝업을 메인 윈도우 중앙에 배치
+    popup.update_idletasks()
+    x = root.winfo_x() + (root.winfo_width() // 2) - (popup.winfo_width() // 2)
+    y = root.winfo_y() + (root.winfo_height() // 2) - (popup.winfo_height() // 2)
+    popup.geometry(f"+{x}+{y}")
+    Label(popup, text=f"{station}역을 출발/도착역으로 설정").pack(pady=10)
+    Button(popup, text="출발역으로", command=lambda: set_start_station(station, popup)).pack(side=LEFT, padx=10)
+    Button(popup, text="도착역으로", command=lambda: set_end_station(station, popup)).pack(side=RIGHT, padx=10)
+
+def set_start_station(station, popup):
+    global start
+    start = station
+    print(f"출발역이 {station}로 설정되었습니다.")
+    update_station_status()
+    popup.destroy()
+
+def set_end_station(station, popup):
+    global end
+    end = station
+    print(f"도착역이 {station}로 설정되었습니다.")
+    update_station_status()
+    popup.destroy()
+
 canvas.tag_bind('invisible_btn', '<Button-1>', on_invisible_btn_click)
+
+def show_route_popup():
+    # 출발역, 도착역이 모두 지정되어야 함
+    if not start or not end:
+        popup = Toplevel(root)
+        popup.title('경로 안내')
+        Label(popup, text='출발역과 도착역을 모두 선택하세요.').pack(padx=20, pady=20)
+        Button(popup, text='확인', command=popup.destroy).pack(pady=10)
+        return
+    # 경로 탐색 로직 실행 (기존 코드 활용)
+    # routing 초기화
+    for place in routing.keys():
+        routing[place] = {'shortestDist':0, 'route':[], 'visited':0}
+    visitPlace(start)
+    while 1:
+        minDist = max(routing.values(),key = lambda x:x['shortestDist'])['shortestDist']
+        toVisit = ''
+        for name, search in routing.items():
+            if 0 < search['shortestDist'] <=minDist and not search['visited']:
+                minDist = search['shortestDist']
+                toVisit=name
+        if toVisit == '':
+            break
+        visitPlace(toVisit)
+    # 결과 표시
+    route = routing[end]['route'] + [end] if routing[end]['route'] else []
+    dist = routing[end]['shortestDist']
+    popup = Toplevel(root)
+    popup.title('경로 안내')
+    if route:
+        route_str = ' → '.join(route)
+        Label(popup, text=f'[{start} → {end}]').pack(pady=5)
+        Label(popup, text=f'경로: {route_str}').pack(pady=5)
+        Label(popup, text=f'최단거리: {dist}').pack(pady=5)
+    else:
+        Label(popup, text='경로를 찾을 수 없습니다.').pack(padx=20, pady=20)
+    Button(popup, text='확인', command=popup.destroy).pack(pady=10)
+
+def update_station_status():
+    station_status_var.set(f"출발역: {start}   도착역: {end}")
 
 root.mainloop()
