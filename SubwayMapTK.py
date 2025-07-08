@@ -31,8 +31,11 @@ class SubwayApp:
     def _init_style(self):
         style = ttk.Style()
         style.theme_use('clam')
-        style.configure('TButton', font=('맑은 고딕', 11, 'bold'), foreground='#222', background='#e0e0e0', borderwidth=0, focusthickness=3, focuscolor='none', padding=8)
+        style.configure('TButton', font=('맑은 고딕', 11, 'bold'), foreground='#222', background='#e0e0e0', borderwidth=0, focusthickness=3, focuscolor='none', padding=8, anchor='center', justify='center')
         style.map('TButton', background=[('active', '#b3e5fc'), ('pressed', '#81d4fa')])
+        style.layout('TbButton', style.layout('TButton'))
+        style.configure('TbButton', font=('Arial', 18, 'bold'), foreground='#222', background='#e0e0e0', borderwidth=0, focusthickness=3, focuscolor='none', padding=6, anchor='n', justify='center')
+        style.map('TbButton', background=[('active', '#b3e5fc'), ('pressed', '#81d4fa')])
         style.configure('TLabel', font=('맑은 고딕', 12), background='#f8f9fa', foreground='#222')
         style.configure('TFrame', background='#f8f9fa')
         self.root.configure(bg="#f8f9fa")
@@ -61,8 +64,8 @@ class SubwayApp:
         self.root.update()
         self._place_image_center()
         # 확대/축소 버튼
-        self.plus_btn = ttk.Button(self.root, text='+', style='TButton', command=self.zoom_in)
-        self.minus_btn = ttk.Button(self.root, text='-', style='TButton', command=self.zoom_out)
+        self.plus_btn = ttk.Button(self.root, text='+', style='TbButton', command=self.zoom_in, width=2)
+        self.minus_btn = ttk.Button(self.root, text='-', style='TbButton', command=self.zoom_out, width=2)
         self.plus_btn.place(relx=1.0, rely=1.0, x=-30, y=-120, anchor='se')
         self.minus_btn.place(relx=1.0, rely=1.0, x=-30, y=-60, anchor='se')
         # 이벤트 바인딩
