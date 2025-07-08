@@ -6,11 +6,18 @@ root = Tk()
 root.title("Subway Map")
 root.geometry("640x480")
 
-# 출발역/도착역 표시용 라벨 추가
+# 출발역/도착역 표시용 라벨과 길찾기 버튼을 담을 프레임 생성
+# (상단 한 줄에 나란히 배치)
+top_frame = Frame(root, bg="#f0f0f0")
+top_frame.pack(side=TOP, fill=X, pady=2)
+
 station_status_var = StringVar()
 station_status_var.set("출발역: 노포   도착역: 벡스코")
-station_status_label = Label(root, textvariable=station_status_var, font=("맑은 고딕", 12, "bold"), bg="#f0f0f0")
-station_status_label.pack(side=TOP, fill=X, pady=2)
+station_status_label = Label(top_frame, textvariable=station_status_var, font=("맑은 고딕", 12, "bold"), bg="#f0f0f0")
+station_status_label.pack(side=LEFT, padx=10)
+
+find_route_btn = Button(top_frame, text='길 찾기', command=lambda: show_route_popup())
+find_route_btn.pack(side=RIGHT, padx=10)
 
 img = Image.open("./Image/subway.png")
 img_scale = 1.0
@@ -333,9 +340,7 @@ minus_btn = Button(root, text='-', command=zoom_out)
 plus_btn.place(relx=1.0, rely=1.0, x=-20, y=-80, anchor='se')
 minus_btn.place(relx=1.0, rely=1.0, x=-20, y=-30, anchor='se')
 
-# 길 찾기 버튼 추가
-find_route_btn = Button(root, text='길 찾기', command=lambda: show_route_popup())
-find_route_btn.place(relx=1.0, rely=1.0, x=-80, y=-30, anchor='se')
+# (하단 길찾기 버튼 관련 코드 완전 삭제)
 
 start = '노포'
 end = '벡스코'
