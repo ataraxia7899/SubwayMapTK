@@ -196,7 +196,7 @@ img_btn_ids = []
 def create_image_buttons():
     for x, y, text in button_coords:
         # 투명한 캔버스 윈도우(실제 위젯 없음)
-        btn_id = canvas.create_rectangle(0, 0, 20, 20, outline='', fill='red', tags='invisible_btn')
+        btn_id = canvas.create_rectangle(0, 0, 20, 20, outline='', fill='', tags='invisible_btn')
         img_btns.append((text, x, y))
         img_btn_ids.append(btn_id)
 
