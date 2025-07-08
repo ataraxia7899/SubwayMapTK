@@ -12,6 +12,7 @@ SubwayMapTK는 파이썬 Tkinter와 Pillow를 활용하여 지하철 노선도 �
 
 ## 📂 프로젝트 구조
 
+```
 📦 SubwayMapTK  
 ├── Image/  
 │ └── subway.png # 지하철 노선도 이미지 파일  
@@ -25,6 +26,7 @@ SubwayMapTK는 파이썬 Tkinter와 Pillow를 활용하여 지하철 노선도 �
 │ └── EastSea_White.py # 동해선(하양) 역 연결 정보  
 ├── .gitignore # Git 버전관리 제외 파일 목록  
 └── README.md # 프로젝트 설명 파일
+```
 
 ## 🏃‍♂️ 설치 및 실행 방법
 
