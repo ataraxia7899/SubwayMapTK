@@ -246,7 +246,7 @@ class SubwayApp:
         if route:
             route_str = ' → '.join(route)
             ttk.Label(popup, text=f'[{self.start} → {self.end}]', style='TLabel').pack(pady=5)
-            ttk.Label(popup, text=f'경로: {route_str}', style='TLabel').pack(pady=5)
+            ttk.Label(popup, text=f'   경로: {route_str}   ', style='TLabel').pack(pady=5)
             ttk.Label(popup, text=f'최단거리: {dist}', style='TLabel').pack(pady=5)
         else:
             ttk.Label(popup, text='경로를 찾을 수 없습니다.', style='TLabel').pack(padx=20, pady=20)
