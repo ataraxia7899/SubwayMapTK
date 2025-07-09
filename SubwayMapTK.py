@@ -52,7 +52,7 @@ class SubwayApp:
         style.configure('RouteBold.TLabel', font=('맑은 고딕', 12, 'bold'), background='#f8f9fa', foreground='#222')
         style.configure('RouteNormal.TLabel', font=('맑은 고딕', 12), background='#f8f9fa', foreground='#222')
         # 추가: 화살표 버튼 정사각형 스타일
-        style.configure('Arrow.TButton', font=('맑은 고딕', 16, 'bold'), padding=0, anchor='center')
+        style.configure('Arrow.TButton', font=('Arial', 18, 'bold'), padding=0, anchor='center')
         self.root.configure(bg="#f8f9fa")
 
     def _init_ui(self):
@@ -66,7 +66,7 @@ class SubwayApp:
         # 출발역 선택
         self.start_frame = ttk.Frame(self.station_frame, style='TFrame')
         self.start_frame.grid(row=0, column=0, padx=4, sticky='e')
-        ttk.Label(self.start_frame, text="출발역:", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        ttk.Label(self.start_frame, text="출발역", style='TLabel', font=('맑은 고딕', 16, 'bold')).pack(side=TOP, pady=(0, 5))
         self.start_var = StringVar()
         self.start_combo = ttk.Combobox(self.start_frame, textvariable=self.start_var, values=self.station_list, 
                                        font=('맑은 고딕', 11), width=20, state='normal')
@@ -78,12 +78,12 @@ class SubwayApp:
         # 화살표
         self.arrow_btn = ttk.Button(self.station_frame, text="➔", style='Arrow.TButton', 
                                    command=self.show_route_popup, width=3)
-        self.arrow_btn.grid(row=0, column=1, padx=8, pady=8)
+        self.arrow_btn.grid(row=0, column=1, padx=50, pady=8, ipadx=8, ipady=8)
         
         # 도착역 선택
         self.end_frame = ttk.Frame(self.station_frame, style='TFrame')
         self.end_frame.grid(row=0, column=2, padx=4, sticky='w')
-        ttk.Label(self.end_frame, text="도착역:", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        ttk.Label(self.end_frame, text="도착역", style='TLabel', font=('맑은 고딕', 16, 'bold')).pack(side=TOP, pady=(0, 5))
         self.end_var = StringVar()
         self.end_combo = ttk.Combobox(self.end_frame, textvariable=self.end_var, values=self.station_list, 
                                      font=('맑은 고딕', 11), width=20, state='normal')
