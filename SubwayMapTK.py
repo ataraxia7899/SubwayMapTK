@@ -273,15 +273,28 @@ class SubwayApp:
         # 콤보박스에 입력된 값도 우선 반영
         start_input = self.start_var.get()
         end_input = self.end_var.get()
-        if start_input in self.station_list:
+        start_valid = start_input in self.station_list
+        end_valid = end_input in self.station_list
+        # 입력값이 유효하면 self.start, self.end에 반영
+        if start_valid:
             self.start = start_input
-        if end_input in self.station_list:
+        if end_valid:
             self.end = end_input
-        if not self.start or not self.end:
+        # 오류 메시지 세분화
+        error_msg = None
+        if not start_input or not end_input:
+            error_msg = '출발역과 도착역을 모두 입력하세요.'
+        elif not start_valid and not end_valid:
+            error_msg = '출발역과 도착역이 모두 올바르지 않습니다. 다시 입력해 주세요.'
+        elif not start_valid:
+            error_msg = '출발역이 올바르지 않습니다. 다시 입력해 주세요.'
+        elif not end_valid:
+            error_msg = '도착역이 올바르지 않습니다. 다시 입력해 주세요.'
+        if error_msg:
             popup = Toplevel(self.root)
             popup.title('경로 안내')
             popup.configure(bg='#f8f9fa')
-            ttk.Label(popup, text='출발역과 도착역을 모두 선택하세요.', style='TLabel').pack(padx=20, pady=20)
+            ttk.Label(popup, text=error_msg, style='TLabel').pack(padx=20, pady=20)
             ttk.Button(popup, text='확인', style='TButton', command=popup.destroy).pack(pady=10)
             popup.update_idletasks()
             x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
