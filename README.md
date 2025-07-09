@@ -68,3 +68,7 @@ python SubwayMapTK.py
 | landscape dict   | 역 간 연결 정보(그래프 구조)             |
 | routing dict     | 각 역별 경로 및 거리 저장                |
 | 이벤트 핸들러    | 마우스 휠, 드래그, 클릭, 창 크기 변경 등 |
+
+<hr>
+
+사용한 아이콘 출처 : [Icons8](Icons8.com)
