@@ -53,6 +53,9 @@ class SubwayApp:
         style.configure('RouteNormal.TLabel', font=('맑은 고딕', 12), background='#f8f9fa', foreground='#222')
         # 추가: 화살표 버튼 정사각형 스타일
         style.configure('Arrow.TButton', font=('Arial', 18, 'bold'), padding=0, anchor='center')
+        # 추가: 동그라미 버튼 스타일
+        style.configure('Circle.TButton', font=('Arial', 18, 'bold'), foreground='#222', background='#e0e0e0', borderwidth=0, focusthickness=3, focuscolor='none', padding=0, anchor='center', relief='flat')
+        style.map('Circle.TButton', background=[('active', '#b3e5fc'), ('pressed', '#81d4fa')])
         self.root.configure(bg="#f8f9fa")
 
     def _init_ui(self):
@@ -75,10 +78,12 @@ class SubwayApp:
         self.start_combo.bind('<KeyRelease>', self.on_start_search)
         self.start_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
         
-        # 화살표
-        self.arrow_btn = ttk.Button(self.station_frame, text="➔", style='Arrow.TButton', 
-                                   command=self.show_route_popup, width=3)
-        self.arrow_btn.grid(row=0, column=1, padx=50, pady=8, ipadx=8, ipady=8)
+        # 화살표 (동그라미 Canvas 버튼)
+        self.arrow_canvas = Canvas(self.station_frame, width=48, height=48, highlightthickness=0, bg='#f8f9fa')
+        self.arrow_canvas.grid(row=0, column=1, padx=50, pady=8)
+        self.arrow_circle = self.arrow_canvas.create_oval(2, 2, 46, 46, fill='#e0e0e0', outline='#b3e5fc', width=2)
+        self.arrow_text = self.arrow_canvas.create_text(24, 24, text='➔', font=('Arial', 18, 'bold'), fill='#222')
+        self.arrow_canvas.bind('<Button-1>', lambda e: self.show_route_popup())
         
         # 도착역 선택
         self.end_frame = ttk.Frame(self.station_frame, style='TFrame')
@@ -110,11 +115,17 @@ class SubwayApp:
         self.img_id = self.canvas.create_image(0, 0, anchor=CENTER, image=self.img_tk)
         self.root.update()
         self._place_image_center()
-        # 확대/축소 버튼
-        self.plus_btn = ttk.Button(self.root, text='+', style='TbButton', command=self.zoom_in, width=2)
-        self.minus_btn = ttk.Button(self.root, text='-', style='TbButton', command=self.zoom_out, width=2)
-        self.plus_btn.place(relx=1.0, rely=1.0, x=-30, y=-120, anchor='se')
-        self.minus_btn.place(relx=1.0, rely=1.0, x=-30, y=-60, anchor='se')
+        # 확대/축소 버튼 (동그라미 Canvas 버튼)
+        self.plus_canvas = Canvas(self.root, width=48, height=48, highlightthickness=0, bg='#f8f9fa')
+        self.minus_canvas = Canvas(self.root, width=48, height=48, highlightthickness=0, bg='#f8f9fa')
+        self.plus_circle = self.plus_canvas.create_oval(2, 2, 46, 46, fill='#e0e0e0', outline='#b3e5fc', width=2)
+        self.plus_text = self.plus_canvas.create_text(24, 24, text='+', font=('Arial', 18, 'bold'), fill='#222')
+        self.minus_circle = self.minus_canvas.create_oval(2, 2, 46, 46, fill='#e0e0e0', outline='#b3e5fc', width=2)
+        self.minus_text = self.minus_canvas.create_text(24, 24, text='-', font=('Arial', 18, 'bold'), fill='#222')
+        self.plus_canvas.place(relx=1.0, rely=1.0, x=-30, y=-120, anchor='se')
+        self.minus_canvas.place(relx=1.0, rely=1.0, x=-30, y=-60, anchor='se')
+        self.plus_canvas.bind('<Button-1>', lambda e: self.zoom_in())
+        self.minus_canvas.bind('<Button-1>', lambda e: self.zoom_out())
         # 이벤트 바인딩
         self.root.bind("<MouseWheel>", self.on_mousewheel)
         self.canvas.bind('<ButtonPress-1>', self.on_button_press)
