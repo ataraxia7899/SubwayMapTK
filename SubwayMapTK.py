@@ -270,6 +270,13 @@ class SubwayApp:
 
     # --- 경로 탐색 및 안내 ---
     def show_route_popup(self):
+        # 콤보박스에 입력된 값도 우선 반영
+        start_input = self.start_var.get()
+        end_input = self.end_var.get()
+        if start_input in self.station_list:
+            self.start = start_input
+        if end_input in self.station_list:
+            self.end = end_input
         if not self.start or not self.end:
             popup = Toplevel(self.root)
             popup.title('경로 안내')
