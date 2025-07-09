@@ -76,9 +76,15 @@ class SubwayApp:
         self.start_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
         
         # 화살표
-        self.arrow_btn = ttk.Button(self.station_frame, text="➔", style='Arrow.TButton', 
-                                   command=self.show_route_popup, width=3)
-        self.arrow_btn.grid(row=0, column=1, padx=8, pady=8)
+        self.arrow_label = ttk.Label(
+            self.station_frame,
+            text="➔",
+            style='TLabel',
+            font=('맑은 고딕', 16, 'bold'),
+            cursor='hand2'
+        )
+        self.arrow_label.grid(row=0, column=1, padx=8, pady=8)
+        self.arrow_label.bind("<Button-1>", lambda e: self.show_route_popup())
         
         # 도착역 선택
         self.end_frame = ttk.Frame(self.station_frame, style='TFrame')
