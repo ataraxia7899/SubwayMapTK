@@ -49,6 +49,7 @@ class SubwayApp:
         style.configure('TCombobox', font=('맑은 고딕', 11), background='white', fieldbackground='white')
         # 추가: 경로 안내용 스타일
         style.configure('RouteBig.TLabel', font=('맑은 고딕', 16, 'bold'), background='#f8f9fa', foreground='#222')
+        style.configure('RouteBold.TLabel', font=('맑은 고딕', 12, 'bold'), background='#f8f9fa', foreground='#222')
         style.configure('RouteNormal.TLabel', font=('맑은 고딕', 12), background='#f8f9fa', foreground='#222')
         self.root.configure(bg="#f8f9fa")
 
@@ -398,7 +399,15 @@ class SubwayApp:
             ttk.Label(route_frame, text=' → ', style='RouteNormal.TLabel').pack(side=LEFT)
             ttk.Label(route_frame, text=f'{self.end}', style='RouteBig.TLabel').pack(side=LEFT)
             ttk.Label(route_frame, text=']', style='RouteNormal.TLabel').pack(side=LEFT)
-            ttk.Label(popup, text=f'   {route_str}   ', style='TLabel').pack(pady=5)
+            # 경로 안내 라인(구간별로 Label 분리)
+            path_frame = ttk.Frame(popup, style='TFrame')
+            path_frame.pack(pady=5)
+            # 출발역
+            ttk.Label(path_frame, text=filtered_nodes[0], style='RouteBold.TLabel').pack(side=LEFT)
+            for prev, seg_dist, nxt in segs:
+                ttk.Label(path_frame, text=f' → ({seg_dist}개 역) → ', style='RouteNormal.TLabel').pack(side=LEFT)
+                ttk.Label(path_frame, text=nxt, style='RouteBold.TLabel').pack(side=LEFT)
+            # 기존의 ttk.Label(popup, text=f'   {route_str}   ', style='TLabel').pack(pady=5) 부분 삭제
             # 굵게 표시할 부분만 Label 분리
             info_frame = ttk.Frame(popup, style='TFrame')
             info_frame.pack(pady=5)
