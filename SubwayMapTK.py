@@ -60,7 +60,7 @@ class SubwayApp:
         # 출발역 선택
         self.start_frame = ttk.Frame(self.station_frame, style='TFrame')
         self.start_frame.pack(side=LEFT, expand=True, padx=10)
-        ttk.Label(self.start_frame, text="출발역:", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        ttk.Label(self.start_frame, text="출발역", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
         self.start_var = StringVar()
         self.start_combo = ttk.Combobox(self.start_frame, textvariable=self.start_var, values=self.station_list, 
                                        font=('맑은 고딕', 11), width=20, state='normal')
@@ -77,7 +77,7 @@ class SubwayApp:
         # 도착역 선택
         self.end_frame = ttk.Frame(self.station_frame, style='TFrame')
         self.end_frame.pack(side=LEFT, expand=True, padx=10)
-        ttk.Label(self.end_frame, text="도착역:", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        ttk.Label(self.end_frame, text="도착역", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
         self.end_var = StringVar()
         self.end_combo = ttk.Combobox(self.end_frame, textvariable=self.end_var, values=self.station_list, 
                                      font=('맑은 고딕', 11), width=20, state='normal')
