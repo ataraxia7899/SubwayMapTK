@@ -22,6 +22,10 @@ class SubwayApp:
         self.img_btns = []
         self.img_btn_ids = []
         self.routing = {place: {'shortestDist': 0, 'route': [], 'visited': 0} for place in SUBWAY.keys()}
+        # 역 버튼 클릭/드래그 구분용 변수
+        self.btn_click_start_x = 0
+        self.btn_click_start_y = 0
+        self.btn_click_candidate_idx = None
         # 역 목록 생성
         self.station_list = list(SUBWAY.keys())
         self.station_list.sort()
@@ -108,7 +112,11 @@ class SubwayApp:
         self.canvas.bind('<ButtonPress-1>', self.on_button_press)
         self.canvas.bind('<B1-Motion>', self.on_drag)
         self.canvas.bind('<Configure>', self.on_configure)
-        self.canvas.tag_bind('invisible_btn', '<Button-1>', self.on_invisible_btn_click)
+        # 역 버튼 클릭/드래그 구분 바인딩
+        self.canvas.tag_bind('invisible_btn', '<ButtonPress-1>', self.on_btn_press)
+        self.canvas.tag_bind('invisible_btn', '<ButtonRelease-1>', self.on_btn_release)
+        # 기존 클릭 핸들러는 사용하지 않음
+        # self.canvas.tag_bind('invisible_btn', '<Button-1>', self.on_invisible_btn_click)
 
     def _create_image_buttons(self):
         for x, y, text in BUTTON_COORDS:
@@ -212,6 +220,31 @@ class SubwayApp:
                 station = self.img_btns[idx][0]
                 self.show_station_select_popup(station)
                 break
+
+    # --- 역 버튼 클릭/드래그 구분용 함수 ---
+    def on_btn_press(self, event):
+        # 어떤 버튼 영역에 눌렀는지 확인
+        for idx, btn_id in enumerate(self.img_btn_ids):
+            coords = self.canvas.coords(btn_id)
+            if coords[0] <= event.x <= coords[2] and coords[1] <= event.y <= coords[3]:
+                self.btn_click_start_x = event.x
+                self.btn_click_start_y = event.y
+                self.btn_click_candidate_idx = idx
+                break
+            else:
+                self.btn_click_candidate_idx = None
+
+    def on_btn_release(self, event):
+        if self.btn_click_candidate_idx is None:
+            return
+        dx = event.x - self.btn_click_start_x
+        dy = event.y - self.btn_click_start_y
+        if abs(dx) < 5 and abs(dy) < 5:
+            # 클릭으로 간주, 팝업 실행
+            station = self.img_btns[self.btn_click_candidate_idx][0]
+            self.show_station_select_popup(station)
+        # 드래그면 아무 동작 안 함
+        self.btn_click_candidate_idx = None
 
     # --- 팝업 및 상태 업데이트 ---
     def _close_popup(self, popup):
