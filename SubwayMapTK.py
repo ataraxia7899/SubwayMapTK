@@ -62,6 +62,7 @@ class SubwayApp:
         self.start_combo.pack(side=TOP, fill=X)
         self.start_combo.bind('<<ComboboxSelected>>', self.on_start_station_selected)
         self.start_combo.bind('<KeyRelease>', self.on_start_search)
+        self.start_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
         
         # 화살표
         self.arrow_label = ttk.Label(self.station_frame, text="➔", style='TLabel', 
@@ -78,6 +79,7 @@ class SubwayApp:
         self.end_combo.pack(side=TOP, fill=X)
         self.end_combo.bind('<<ComboboxSelected>>', self.on_end_station_selected)
         self.end_combo.bind('<KeyRelease>', self.on_end_search)
+        self.end_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
         
         # 길 찾기 버튼
         self.find_route_btn = ttk.Button(self.top_frame, text='길 찾기', style='TButton', command=self.show_route_popup)
@@ -261,6 +263,10 @@ class SubwayApp:
             self.end_combo['values'] = filtered_stations
         else:
             self.end_combo['values'] = self.station_list
+
+    def _open_combo_dropdown(self, event):
+        # 엔터키로 콤보박스 드롭다운 열기
+        event.widget.event_generate('<Down>')
 
     # --- 경로 탐색 및 안내 ---
     def show_route_popup(self):
