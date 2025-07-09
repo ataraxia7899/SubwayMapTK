@@ -105,6 +105,13 @@ class SubwayApp:
         self.top_frame.grid_columnconfigure(1, weight=2)
         self.top_frame.grid_columnconfigure(2, weight=1)
 
+        # 경로 탐색 모드 선택 라디오버튼 추가
+        self.route_mode_var = StringVar(value='shortest')
+        mode_frame = ttk.Frame(self.top_frame, style='TFrame')
+        mode_frame.pack(side=TOP, pady=2)
+        ttk.Radiobutton(mode_frame, text='최단 경로', variable=self.route_mode_var, value='shortest').pack(side=LEFT, padx=4)
+        ttk.Radiobutton(mode_frame, text='최소 환승', variable=self.route_mode_var, value='min_transfer').pack(side=LEFT, padx=4)
+
     def _init_canvas(self):
         self.img = Image.open("./Image/subway.png")
         self.canvas = Canvas(self.root, width=900, height=600, bg='white', highlightthickness=0)
@@ -314,6 +321,38 @@ class SubwayApp:
         event.widget.event_generate('<Down>')
 
     # --- 경로 탐색 및 안내 ---
+    def find_shortest_route_with_transfer(self, start, end):
+        from collections import deque
+        station_to_line = {text: line for _, _, text, line in BUTTON_COORDS}
+        queue = deque()
+        visited = dict()  # (역, 호선): 최소 환승횟수
+        for line in station_to_line.get(start, '').split('/'):
+            queue.append((start, line, [start], 0, 0))
+            visited[(start, line)] = 0
+        min_dist = float('inf')
+        min_route = []
+        min_transfer = float('inf')
+        while queue:
+            curr, curr_line, path, transfer, dist = queue.popleft()
+            if curr == end:
+                if dist < min_dist or (dist == min_dist and transfer < min_transfer):
+                    min_dist = dist
+                    min_route = path[:]
+                    min_transfer = transfer
+                continue
+            for next_station in SUBWAY[curr]:
+                next_lines = station_to_line.get(next_station, '').split('/')
+                for next_line in next_lines:
+                    next_transfer = transfer + (0 if next_line == curr_line else 1)
+                    state = (next_station, next_line)
+                    if state in visited and visited[state] <= next_transfer:
+                        continue
+                    visited[state] = next_transfer
+                    queue.append((next_station, next_line, path + [next_station], next_transfer, dist + 1))
+        if not min_route or min_dist == float('inf') or min_transfer == float('inf'):
+            return [], 0, 0
+        return min_route, min_dist, min_transfer
+
     def show_route_popup(self):
         if self.popup_opened:
             return
@@ -325,12 +364,10 @@ class SubwayApp:
         end_input = self.end_var.get()
         start_valid = start_input in self.station_list
         end_valid = end_input in self.station_list
-        # 입력값이 유효하면 self.start, self.end에 반영
         if start_valid:
             self.start = start_input
         if end_valid:
             self.end = end_input
-        # 오류 메시지 세분화
         error_msg = None
         if not start_input or not end_input:
             error_msg = '출발역과 도착역을 모두 입력하세요.'
@@ -353,29 +390,35 @@ class SubwayApp:
             popup.geometry(f"+{x}+{y}")
             popup.protocol("WM_DELETE_WINDOW", lambda: self._close_popup(popup))
             return
-        # routing 초기화
-        for place in self.routing.keys():
-            self.routing[place] = {'shortestDist': 0, 'route': [], 'visited': 0}
-        self.visit_place(self.start)
-        while 1:
-            minDist = max(self.routing.values(), key=lambda x: x['shortestDist'])['shortestDist']
-            toVisit = ''
-            for name, search in self.routing.items():
-                if 0 < search['shortestDist'] <= minDist and not search['visited']:
-                    minDist = search['shortestDist']
-                    toVisit = name
-            if toVisit == '':
-                break
-            self.visit_place(toVisit)
-        route = self.routing[self.end]['route'] + [self.end] if self.routing[self.end]['route'] else []
-        dist = self.routing[self.end]['shortestDist']
+        # --- 경로 탐색 분기 ---
+        route = []
+        dist = 0
+        transfer_count = 0
+        if self.route_mode_var.get() == 'shortest':
+            route, dist, transfer_count = self.find_shortest_route_with_transfer(self.start, self.end)
+        else:
+            route, dist, transfer_count = self.find_min_transfer_route(self.start, self.end)
+        # 경로가 없으면 안내만 하고 종료
+        if not route:
+            self.popup_opened = True
+            popup = Toplevel(self.root)
+            popup.title('경로 안내')
+            popup.configure(bg='#f8f9fa')
+            ttk.Label(popup, text='경로를 찾을 수 없습니다.', style='TLabel').pack(padx=20, pady=20)
+            ttk.Button(popup, text='확인', style='TButton', command=lambda: self._close_popup(popup)).pack(pady=10)
+            popup.update_idletasks()
+            x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
+            y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
+            popup.geometry(f"+{x}+{y}")
+            popup.protocol("WM_DELETE_WINDOW", lambda: self._close_popup(popup))
+            return
         # --- 경로 버튼 강조 및 visible 처리 ---
         if route:
             for idx, (station, _, _, _) in enumerate(self.img_btns):
                 if station in route:
-                    self.canvas.itemconfig(self.img_btn_ids[idx], fill='red', outline='black', width=3)  # 강조(노란색 배경, 주황 테두리)
+                    self.canvas.itemconfig(self.img_btn_ids[idx], fill='red', outline='black', width=3)
                 else:
-                    self.canvas.itemconfig(self.img_btn_ids[idx], fill='', outline='')  # 비경로는 투명
+                    self.canvas.itemconfig(self.img_btn_ids[idx], fill='', outline='')
         # --- 여기서부터 경로 필터링 ---
         transfer_stations = [name for name, adj in SUBWAY.items() if len(adj) >= 3]
         # BUTTON_COORDS에서 역-호선 매핑 생성
@@ -435,25 +478,67 @@ class SubwayApp:
             path_frame.pack(pady=5)
             # 출발역
             prev_line = station_to_line.get(filtered_nodes[0], "")
-            ttk.Label(path_frame, text=filtered_nodes[0], style='RouteBold.TLabel').pack(side=LEFT)
+            # 출발역에 호선 정보 표시(선택적)
+            if filtered_nodes[0] in transfer_stations:
+                label_text = f"{filtered_nodes[0]}({station_to_line.get(filtered_nodes[0], '')})"
+            else:
+                label_text = filtered_nodes[0]
+            ttk.Label(path_frame, text=label_text, style='RouteBold.TLabel').pack(side=LEFT)
             for prev, seg_dist, nxt in segs:
                 curr_line = station_to_line.get(nxt, "")
-                # 환승역에서만, 앞뒤 호선이 다를 때만 호선명 출력
-                if prev_line != curr_line and nxt in transfer_stations:
-                    ttk.Label(path_frame, text=f' ({curr_line})', style='RouteNormal.TLabel').pack(side=LEFT)
+                # 환승역이면 항상 호선 정보 출력
+                if nxt in transfer_stations:
+                    label_text = f"{nxt}({curr_line})"
+                else:
+                    label_text = nxt
+                # 환승역에서만, 앞뒤 호선이 다를 때만 호선명 출력하는 기존 라벨은 삭제
                 ttk.Label(path_frame, text=f' → ({seg_dist}개 역) → ', style='RouteNormal.TLabel').pack(side=LEFT)
-                ttk.Label(path_frame, text=nxt, style='RouteBold.TLabel').pack(side=LEFT)
+                ttk.Label(path_frame, text=label_text, style='RouteBold.TLabel').pack(side=LEFT)
                 prev_line = curr_line
             # 기존의 ttk.Label(popup, text=f'   {route_str}   ', style='TLabel').pack(pady=5) 부분 삭제
             # 굵게 표시할 부분만 Label 분리
+            def count_transfers_precise(route, station_to_line):
+                if not route or len(route) < 2:
+                    return 0
+                prev_lines = set(station_to_line.get(route[0], '').split('/'))
+                transfer_count = 0
+                current_lines = prev_lines
+                for i in range(1, len(route)):
+                    curr_lines = set(station_to_line.get(route[i], '').split('/'))
+                    intersection = current_lines & curr_lines
+                    if intersection:
+                        current_lines = intersection
+                    else:
+                        transfer_count += 1
+                        current_lines = curr_lines
+                return transfer_count
+
+            actual_total_dist = len(route) - 1 if route else 0
+            # filtered_nodes: [출발역, 환승1, 환승2, ..., 도착역]
+            num_transfers_by_nodes = max(0, len(filtered_nodes) - 2)
             info_frame = ttk.Frame(popup, style='TFrame')
             info_frame.pack(pady=5)
-            Label(info_frame, text=f"{self.start}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
-            Label(info_frame, text="역에서 ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
-            Label(info_frame, text=f"{self.end}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
-            Label(info_frame, text="역까지의 최단 경로는 총 ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
-            Label(info_frame, text=f"{total_dist}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
-            Label(info_frame, text="개의 역을 지나야 합니다.", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
+            if self.route_mode_var.get() == 'min_transfer':
+                # 최소 환승 모드: find_min_transfer_route에서 반환한 transfer_count만 사용
+                Label(info_frame, text=f"{self.start}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text="역에서 ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text=f"{self.end}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text="역까지의 최소 환승 경로는 총 ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text=f"{num_transfers_by_nodes}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text="회 환승, ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text=f"{actual_total_dist}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text="개의 역을 지나야 합니다.", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
+            else:
+                # 최단 경로의 환승 횟수 계산 (실제 환승만 카운트, 교집합 방식 개선)
+                transfer_count = count_transfers_precise(route, station_to_line)
+                Label(info_frame, text=f"{self.start}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text="역에서 ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text=f"{self.end}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text="역까지의 최단 경로는 총 ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text=f"{num_transfers_by_nodes}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text="회 환승, ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text=f"{actual_total_dist}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
+                Label(info_frame, text="개의 역을 지나야 합니다.", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
             ttk.Button(popup, text='확인', style='TButton', command=lambda: self._close_popup(popup)).pack(pady=10)
             popup.update_idletasks()
             x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
@@ -481,6 +566,38 @@ class SubwayApp:
                 self.routing[togo]['shortestDist'] = toDist
                 self.routing[togo]['route'] = copy.deepcopy(self.routing[visit]['route'])
                 self.routing[togo]['route'].append(visit)
+
+    def find_min_transfer_route(self, start, end):
+        from collections import deque
+        station_to_line = {text: line for _, _, text, line in BUTTON_COORDS}
+        queue = deque()
+        visited = dict()  # (역, 호선): 최소 환승횟수
+        for line in station_to_line.get(start, '').split('/'):
+            queue.append((start, line, 0, [start], 0))
+            visited[(start, line)] = 0
+        min_transfer = float('inf')
+        min_route = []
+        min_dist = float('inf')
+        while queue:
+            curr, curr_line, transfer, path, dist = queue.popleft()
+            if curr == end:
+                if transfer < min_transfer or (transfer == min_transfer and dist < min_dist):
+                    min_transfer = transfer
+                    min_route = path[:]
+                    min_dist = dist
+                continue
+            for next_station in SUBWAY[curr]:
+                next_lines = station_to_line.get(next_station, '').split('/')
+                for next_line in next_lines:
+                    next_transfer = transfer + (0 if next_line == curr_line else 1)
+                    state = (next_station, next_line)
+                    if state in visited and visited[state] <= next_transfer:
+                        continue
+                    visited[state] = next_transfer
+                    queue.append((next_station, next_line, next_transfer, path + [next_station], dist + 1))
+        if not min_route or min_dist == float('inf') or min_transfer == float('inf'):
+            return [], 0, 0
+        return min_route, min_dist, min_transfer
 
 if __name__ == "__main__":
     root = Tk()
