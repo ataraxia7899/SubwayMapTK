@@ -134,15 +134,15 @@ class SubwayApp:
         self.canvas.tag_bind('invisible_btn', '<ButtonRelease-1>', self.on_btn_release)
 
     def _create_image_buttons(self):
-        for x, y, text in BUTTON_COORDS:
+        for x, y, text, line in BUTTON_COORDS:
             btn_id = self.canvas.create_rectangle(0, 0, 20, 20, outline='', fill='', tags='invisible_btn')
-            self.img_btns.append((text, x, y))
+            self.img_btns.append((text, x, y, line))
             self.img_btn_ids.append(btn_id)
 
     def _update_all_img_btns(self):
         w, h = self.img.size
         img_cx, img_cy = self.canvas.coords(self.img_id)
-        for idx, (_, bx, by) in enumerate(self.img_btns):
+        for idx, (_, bx, by, _) in enumerate(self.img_btns):
             dx = (bx - w / 2) * self.img_scale
             dy = (by - h / 2) * self.img_scale
             btn_canvas_x = img_cx + dx
@@ -244,8 +244,8 @@ class SubwayApp:
         dy = event.y - self.btn_click_start_y
         if abs(dx) < 5 and abs(dy) < 5:
             # 클릭으로 간주, 팝업 실행
-            station = self.img_btns[self.btn_click_candidate_idx][0]
-            self.show_station_select_popup(station)
+            station, _, _, line = self.img_btns[self.btn_click_candidate_idx]
+            self.show_station_select_popup(station, line)
         # 드래그면 아무 동작 안 함
         self.btn_click_candidate_idx = None
 
@@ -254,7 +254,7 @@ class SubwayApp:
         self.popup_opened = False
         popup.destroy()
 
-    def show_station_select_popup(self, station):
+    def show_station_select_popup(self, station, line):
         if self.popup_opened:
             return
         self.popup_opened = True
@@ -266,7 +266,7 @@ class SubwayApp:
         x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
         popup.geometry(f"+{x}+{y}")
-        ttk.Label(popup, text=f"{station}역을 출발/도착역으로 설정", style='TLabel').pack(pady=16)
+        ttk.Label(popup, text=f"{station}역 ({line}) 을 출발/도착역으로 설정", style='TLabel').pack(pady=16)
         btn_frame = ttk.Frame(popup, style='TFrame')
         btn_frame.pack(pady=8)
         ttk.Button(btn_frame, text="출발역으로", style='TButton', command=lambda: self.set_start_station(station, popup)).pack(side=LEFT, padx=10)
