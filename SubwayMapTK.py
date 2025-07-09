@@ -12,7 +12,6 @@ class SubwayApp:
         self.root = root
         self.start = ''
         self.end = ''
-        self.via = ''  # 경유역
         self.img_scale = 1.0
         self.img_min_scale = 0.2
         self.img_max_scale = 3.0
@@ -60,9 +59,11 @@ class SubwayApp:
     def _init_ui(self):
         self.top_frame = ttk.Frame(self.root, style='TFrame')
         self.top_frame.pack(side=TOP, fill=X, pady=8)
-        # 출발역/경유역/도착역 선택 프레임
+        
+        # 출발역/도착역 선택 프레임
         self.station_frame = ttk.Frame(self.top_frame, style='TFrame')
         self.station_frame.pack(side=TOP, fill=X, expand=True, pady=8)
+        
         # 출발역 선택
         self.start_frame = ttk.Frame(self.station_frame, style='TFrame')
         self.start_frame.grid(row=0, column=0, padx=4, sticky='e')
@@ -74,32 +75,17 @@ class SubwayApp:
         self.start_combo.bind('<<ComboboxSelected>>', self.on_start_station_selected)
         self.start_combo.bind('<KeyRelease>', self.on_start_search)
         self.start_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
-        # 화살표1 (출발→경유)
-        self.arrow1_canvas = Canvas(self.station_frame, width=48, height=48, highlightthickness=0, bg='#f8f9fa')
-        self.arrow1_canvas.grid(row=0, column=1, padx=50, pady=8)
-        self.arrow1_circle = self.arrow1_canvas.create_oval(2, 2, 46, 46, fill='#e0e0e0', outline='#b3e5fc', width=2)
-        self.arrow1_text = self.arrow1_canvas.create_text(24, 24, text='➔', font=('Arial', 18, 'bold'), fill='#222')
-        self.arrow1_canvas.bind('<Button-1>', lambda e: self.show_route_popup())
-        # 경유역 선택
-        self.via_frame = ttk.Frame(self.station_frame, style='TFrame')
-        self.via_frame.grid(row=0, column=2, padx=4, sticky='e')
-        ttk.Label(self.via_frame, text="경유역", style='TLabel', font=('맑은 고딕', 16, 'bold')).pack(side=TOP, pady=(0, 5))
-        self.via_var = StringVar()
-        self.via_combo = ttk.Combobox(self.via_frame, textvariable=self.via_var, values=[''] + self.station_list, 
-                                       font=('맑은 고딕', 11), width=20, state='normal')
-        self.via_combo.pack(side=TOP, fill=X)
-        self.via_combo.bind('<<ComboboxSelected>>', self.on_via_station_selected)
-        self.via_combo.bind('<KeyRelease>', self.on_via_search)
-        self.via_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
-        # 화살표2 (경유→도착)
-        self.arrow2_canvas = Canvas(self.station_frame, width=48, height=48, highlightthickness=0, bg='#f8f9fa')
-        self.arrow2_canvas.grid(row=0, column=3, padx=50, pady=8)
-        self.arrow2_circle = self.arrow2_canvas.create_oval(2, 2, 46, 46, fill='#e0e0e0', outline='#b3e5fc', width=2)
-        self.arrow2_text = self.arrow2_canvas.create_text(24, 24, text='➔', font=('Arial', 18, 'bold'), fill='#222')
-        self.arrow2_canvas.bind('<Button-1>', lambda e: self.show_route_popup())
+        
+        # 화살표 (동그라미 Canvas 버튼)
+        self.arrow_canvas = Canvas(self.station_frame, width=48, height=48, highlightthickness=0, bg='#f8f9fa')
+        self.arrow_canvas.grid(row=0, column=1, padx=50, pady=8)
+        self.arrow_circle = self.arrow_canvas.create_oval(2, 2, 46, 46, fill='#e0e0e0', outline='#b3e5fc', width=2)
+        self.arrow_text = self.arrow_canvas.create_text(24, 24, text='➔', font=('Arial', 18, 'bold'), fill='#222')
+        self.arrow_canvas.bind('<Button-1>', lambda e: self.show_route_popup())
+        
         # 도착역 선택
         self.end_frame = ttk.Frame(self.station_frame, style='TFrame')
-        self.end_frame.grid(row=0, column=4, padx=4, sticky='w')
+        self.end_frame.grid(row=0, column=2, padx=4, sticky='w')
         ttk.Label(self.end_frame, text="도착역", style='TLabel', font=('맑은 고딕', 16, 'bold')).pack(side=TOP, pady=(0, 5))
         self.end_var = StringVar()
         self.end_combo = ttk.Combobox(self.end_frame, textvariable=self.end_var, values=self.station_list, 
@@ -112,8 +98,6 @@ class SubwayApp:
         self.station_frame.grid_columnconfigure(0, weight=1)
         self.station_frame.grid_columnconfigure(1, weight=0)
         self.station_frame.grid_columnconfigure(2, weight=1)
-        self.station_frame.grid_columnconfigure(3, weight=0)
-        self.station_frame.grid_columnconfigure(4, weight=1)
 
         # 길 찾기 버튼
 
@@ -325,18 +309,6 @@ class SubwayApp:
         else:
             self.end_combo['values'] = self.station_list
 
-    def on_via_station_selected(self, event):
-        selected = self.via_var.get()
-        if selected in self.station_list:
-            self.via = selected
-    def on_via_search(self, event):
-        search_term = self.via_var.get().lower()
-        if search_term:
-            filtered_stations = [station for station in self.station_list if search_term in station.lower()]
-            self.via_combo['values'] = [''] + filtered_stations
-        else:
-            self.via_combo['values'] = [''] + self.station_list
-
     def _open_combo_dropdown(self, event):
         # 엔터키로 콤보박스 드롭다운 열기
         event.widget.event_generate('<Down>')
@@ -348,17 +320,13 @@ class SubwayApp:
         # 콤보박스에 입력된 값도 우선 반영
         start_input = self.start_var.get()
         end_input = self.end_var.get()
-        via_input = self.via_var.get()
         start_valid = start_input in self.station_list
         end_valid = end_input in self.station_list
-        via_valid = (not via_input) or (via_input in self.station_list)
-        # 입력값이 유효하면 self.start, self.end, self.via에 반영
+        # 입력값이 유효하면 self.start, self.end에 반영
         if start_valid:
             self.start = start_input
         if end_valid:
             self.end = end_input
-        if via_valid:
-            self.via = via_input
         # 오류 메시지 세분화
         error_msg = None
         if not start_input or not end_input:
@@ -369,8 +337,6 @@ class SubwayApp:
             error_msg = '출발역이 올바르지 않습니다. 다시 입력해 주세요.'
         elif not end_valid:
             error_msg = '도착역이 올바르지 않습니다. 다시 입력해 주세요.'
-        elif self.via and (self.via == self.start or self.via == self.end):
-            error_msg = '경유역은 출발역/도착역과 달라야 합니다.'
         if error_msg:
             self.popup_opened = True
             popup = Toplevel(self.root)
@@ -387,55 +353,19 @@ class SubwayApp:
         # routing 초기화
         for place in self.routing.keys():
             self.routing[place] = {'shortestDist': 0, 'route': [], 'visited': 0}
-        # 경유역이 있으면 출발→경유, 경유→도착 경로를 이어붙임
-        if self.via:
-            # 출발→경유
-            self.visit_place(self.start)
-            while 1:
-                minDist = max(self.routing.values(), key=lambda x: x['shortestDist'])['shortestDist']
-                toVisit = ''
-                for name, search in self.routing.items():
-                    if 0 < search['shortestDist'] <= minDist and not search['visited']:
-                        minDist = search['shortestDist']
-                        toVisit = name
-                if toVisit == '':
-                    break
-                self.visit_place(toVisit)
-            route1 = self.routing[self.via]['route'] + [self.via] if self.routing[self.via]['route'] else []
-            dist1 = self.routing[self.via]['shortestDist']
-            # 경유→도착
-            for place in self.routing.keys():
-                self.routing[place] = {'shortestDist': 0, 'route': [], 'visited': 0}
-            self.visit_place(self.via)
-            while 1:
-                minDist = max(self.routing.values(), key=lambda x: x['shortestDist'])['shortestDist']
-                toVisit = ''
-                for name, search in self.routing.items():
-                    if 0 < search['shortestDist'] <= minDist and not search['visited']:
-                        minDist = search['shortestDist']
-                        toVisit = name
-                if toVisit == '':
-                    break
-                self.visit_place(toVisit)
-            route2 = self.routing[self.end]['route'] + [self.end] if self.routing[self.end]['route'] else []
-            dist2 = self.routing[self.end]['shortestDist']
-            # 전체 경로 합치기 (경유역 중복 제거)
-            route = route1 + route2[1:] if route1 and route2 else []
-            total_dist = dist1 + dist2
-        else:
-            self.visit_place(self.start)
-            while 1:
-                minDist = max(self.routing.values(), key=lambda x: x['shortestDist'])['shortestDist']
-                toVisit = ''
-                for name, search in self.routing.items():
-                    if 0 < search['shortestDist'] <= minDist and not search['visited']:
-                        minDist = search['shortestDist']
-                        toVisit = name
-                if toVisit == '':
-                    break
-                self.visit_place(toVisit)
-            route = self.routing[self.end]['route'] + [self.end] if self.routing[self.end]['route'] else []
-            total_dist = self.routing[self.end]['shortestDist']
+        self.visit_place(self.start)
+        while 1:
+            minDist = max(self.routing.values(), key=lambda x: x['shortestDist'])['shortestDist']
+            toVisit = ''
+            for name, search in self.routing.items():
+                if 0 < search['shortestDist'] <= minDist and not search['visited']:
+                    minDist = search['shortestDist']
+                    toVisit = name
+            if toVisit == '':
+                break
+            self.visit_place(toVisit)
+        route = self.routing[self.end]['route'] + [self.end] if self.routing[self.end]['route'] else []
+        dist = self.routing[self.end]['shortestDist']
         # --- 여기서부터 경로 필터링 ---
         transfer_stations = [name for name, adj in SUBWAY.items() if len(adj) >= 3]
         # BUTTON_COORDS에서 역-호선 매핑 생성
@@ -488,8 +418,6 @@ class SubwayApp:
             ttk.Label(route_frame, text='[', style='RouteNormal.TLabel').pack(side=LEFT)
             ttk.Label(route_frame, text=f'{self.start}', style='RouteBig.TLabel').pack(side=LEFT)
             ttk.Label(route_frame, text=' → ', style='RouteNormal.TLabel').pack(side=LEFT)
-            ttk.Label(route_frame, text=f'{self.via}', style='RouteBig.TLabel').pack(side=LEFT)
-            ttk.Label(route_frame, text=' → ', style='RouteNormal.TLabel').pack(side=LEFT)
             ttk.Label(route_frame, text=f'{self.end}', style='RouteBig.TLabel').pack(side=LEFT)
             ttk.Label(route_frame, text=']', style='RouteNormal.TLabel').pack(side=LEFT)
             # 경로 안내 라인(구간별로 Label 분리)
@@ -512,8 +440,6 @@ class SubwayApp:
             info_frame.pack(pady=5)
             Label(info_frame, text=f"{self.start}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
             Label(info_frame, text="역에서 ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
-            Label(info_frame, text=f"{self.via}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
-            Label(info_frame, text="역을 거쳐 ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
             Label(info_frame, text=f"{self.end}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
             Label(info_frame, text="역까지의 최단 경로는 총 ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
             Label(info_frame, text=f"{total_dist}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
