@@ -25,6 +25,7 @@ class SubwayApp:
         # 역 목록 생성
         self.station_list = list(SUBWAY.keys())
         self.station_list.sort()
+        self.popup_opened = False  # 팝업 중복 방지 플래그
         self._init_style()
         self._init_ui()
         self._init_canvas()
@@ -213,7 +214,14 @@ class SubwayApp:
                 break
 
     # --- 팝업 및 상태 업데이트 ---
+    def _close_popup(self, popup):
+        self.popup_opened = False
+        popup.destroy()
+
     def show_station_select_popup(self, station):
+        if self.popup_opened:
+            return
+        self.popup_opened = True
         popup = Toplevel(self.root)
         popup.title(f"{station}역 선택")
         popup.geometry("380x120")
@@ -227,16 +235,17 @@ class SubwayApp:
         btn_frame.pack(pady=8)
         ttk.Button(btn_frame, text="출발역으로", style='TButton', command=lambda: self.set_start_station(station, popup)).pack(side=LEFT, padx=10)
         ttk.Button(btn_frame, text="도착역으로", style='TButton', command=lambda: self.set_end_station(station, popup)).pack(side=RIGHT, padx=10)
+        popup.protocol("WM_DELETE_WINDOW", lambda: self._close_popup(popup))
 
     def set_start_station(self, station, popup):
         self.start = station
         self.start_var.set(station)
-        popup.destroy()
+        self._close_popup(popup)
 
     def set_end_station(self, station, popup):
         self.end = station
         self.end_var.set(station)
-        popup.destroy()
+        self._close_popup(popup)
 
     def on_start_station_selected(self, event):
         selected = self.start_var.get()
@@ -270,6 +279,8 @@ class SubwayApp:
 
     # --- 경로 탐색 및 안내 ---
     def show_route_popup(self):
+        if self.popup_opened:
+            return
         # 콤보박스에 입력된 값도 우선 반영
         start_input = self.start_var.get()
         end_input = self.end_var.get()
@@ -291,15 +302,17 @@ class SubwayApp:
         elif not end_valid:
             error_msg = '도착역이 올바르지 않습니다. 다시 입력해 주세요.'
         if error_msg:
+            self.popup_opened = True
             popup = Toplevel(self.root)
             popup.title('경로 안내')
             popup.configure(bg='#f8f9fa')
             ttk.Label(popup, text=error_msg, style='TLabel').pack(padx=20, pady=20)
-            ttk.Button(popup, text='확인', style='TButton', command=popup.destroy).pack(pady=10)
+            ttk.Button(popup, text='확인', style='TButton', command=lambda: self._close_popup(popup)).pack(pady=10)
             popup.update_idletasks()
             x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
             y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
             popup.geometry(f"+{x}+{y}")
+            popup.protocol("WM_DELETE_WINDOW", lambda: self._close_popup(popup))
             return
         # routing 초기화
         for place in self.routing.keys():
@@ -317,21 +330,42 @@ class SubwayApp:
             self.visit_place(toVisit)
         route = self.routing[self.end]['route'] + [self.end] if self.routing[self.end]['route'] else []
         dist = self.routing[self.end]['shortestDist']
-        popup = Toplevel(self.root)
-        popup.title('경로 안내')
-        popup.configure(bg='#f8f9fa')
+        # --- 여기서부터 경로 필터링 ---
+        from SubwayMap.SubwayData import SUBWAY
+        transfer_stations = [name for name, adj in SUBWAY.items() if len(adj) >= 3]
         if route:
-            route_str = ' → '.join(route)
+            filtered_route = [route[0]]  # 출발역
+            for station in route[1:-1]:
+                if station in transfer_stations:
+                    filtered_route.append(station)
+            if len(route) > 1:
+                filtered_route.append(route[-1])  # 도착역
+            route_str = ' → '.join(filtered_route)
+            self.popup_opened = True
+            popup = Toplevel(self.root)
+            popup.title('경로 안내')
+            popup.configure(bg='#f8f9fa')
             ttk.Label(popup, text=f'[{self.start} → {self.end}]', style='TLabel').pack(pady=5)
             ttk.Label(popup, text=f'   경로: {route_str}   ', style='TLabel').pack(pady=5)
             ttk.Label(popup, text=f'최단거리: {dist}', style='TLabel').pack(pady=5)
+            ttk.Button(popup, text='확인', style='TButton', command=lambda: self._close_popup(popup)).pack(pady=10)
+            popup.update_idletasks()
+            x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
+            y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
+            popup.geometry(f"+{x}+{y}")
+            popup.protocol("WM_DELETE_WINDOW", lambda: self._close_popup(popup))
         else:
+            self.popup_opened = True
+            popup = Toplevel(self.root)
+            popup.title('경로 안내')
+            popup.configure(bg='#f8f9fa')
             ttk.Label(popup, text='경로를 찾을 수 없습니다.', style='TLabel').pack(padx=20, pady=20)
-        ttk.Button(popup, text='확인', style='TButton', command=popup.destroy).pack(pady=10)
-        popup.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
-        popup.geometry(f"+{x}+{y}")
+            ttk.Button(popup, text='확인', style='TButton', command=lambda: self._close_popup(popup)).pack(pady=10)
+            popup.update_idletasks()
+            x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
+            y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
+            popup.geometry(f"+{x}+{y}")
+            popup.protocol("WM_DELETE_WINDOW", lambda: self._close_popup(popup))
 
     def visit_place(self, visit):
         self.routing[visit]['visited'] = 1
