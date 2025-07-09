@@ -51,6 +51,8 @@ class SubwayApp:
         style.configure('RouteBig.TLabel', font=('맑은 고딕', 16, 'bold'), background='#f8f9fa', foreground='#222')
         style.configure('RouteBold.TLabel', font=('맑은 고딕', 12, 'bold'), background='#f8f9fa', foreground='#222')
         style.configure('RouteNormal.TLabel', font=('맑은 고딕', 12), background='#f8f9fa', foreground='#222')
+        # 추가: 화살표 버튼 정사각형 스타일
+        style.configure('Arrow.TButton', font=('맑은 고딕', 16, 'bold'), padding=0, anchor='center')
         self.root.configure(bg="#f8f9fa")
 
     def _init_ui(self):
@@ -74,9 +76,9 @@ class SubwayApp:
         self.start_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
         
         # 화살표
-        self.arrow_label = ttk.Label(self.station_frame, text="➔", style='TLabel', 
-                                   font=('맑은 고딕', 16, 'bold'))
-        self.arrow_label.grid(row=0, column=1, padx=8, pady=20)
+        self.arrow_btn = ttk.Button(self.station_frame, text="➔", style='Arrow.TButton', 
+                                   command=self.show_route_popup, width=3)
+        self.arrow_btn.grid(row=0, column=1, padx=8, pady=8)
         
         # 도착역 선택
         self.end_frame = ttk.Frame(self.station_frame, style='TFrame')
@@ -95,8 +97,6 @@ class SubwayApp:
         self.station_frame.grid_columnconfigure(2, weight=1)
 
         # 길 찾기 버튼
-        self.find_route_btn = ttk.Button(self.top_frame, text='길 찾기', style='TButton', command=self.show_route_popup)
-        self.find_route_btn.pack(side=RIGHT, padx=20, pady=10)
 
         self.top_frame.grid_columnconfigure(0, weight=1)
         self.top_frame.grid_columnconfigure(1, weight=2)
