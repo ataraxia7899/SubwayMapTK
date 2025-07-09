@@ -368,12 +368,26 @@ class SubwayApp:
         dist = self.routing[self.end]['shortestDist']
         # --- 여기서부터 경로 필터링 ---
         transfer_stations = [name for name, adj in SUBWAY.items() if len(adj) >= 3]
+        # BUTTON_COORDS에서 역-호선 매핑 생성
+        station_to_line = {text: line for _, _, text, line in BUTTON_COORDS}
         if route:
-            # 환승역만 추출 (출발, 도착 포함)
+            def get_lines(station):
+                return station_to_line.get(station, "").split('/')
+            # 환승역만 추출 (출발, 도착 포함, 실제 환승이 일어나는 경우만)
             filtered_nodes = [route[0]]
-            for station in route[1:-1]:
-                if station in transfer_stations:
-                    filtered_nodes.append(station)
+            for i in range(1, len(route)-1):
+                prev_station = route[i-1]
+                curr_station = route[i]
+                next_station = route[i+1]
+                if curr_station in transfer_stations:
+                    prev_lines = set(get_lines(prev_station))
+                    curr_lines = set(get_lines(curr_station))
+                    next_lines = set(get_lines(next_station))
+                    prev_curr = prev_lines & curr_lines
+                    curr_next = curr_lines & next_lines
+                    # 환승 판정: 두 교집합이 모두 존재하고, 서로 겹치지 않을 때
+                    if prev_curr and curr_next and not (prev_curr & curr_next):
+                        filtered_nodes.append(curr_station)
             if len(route) > 1:
                 filtered_nodes.append(route[-1])
             # 구간별 거리 계산
@@ -388,11 +402,10 @@ class SubwayApp:
                     seg_dist += SUBWAY[route[j]][route[j+1]]
                 segs.append((filtered_nodes[i-1], seg_dist, seg_end))
                 seg_start_idx = route.index(seg_end)
-            # 경로 문자열 생성
-            route_str = filtered_nodes[0]
-            for prev, seg_dist, nxt in segs:
-                route_str += f' → ({seg_dist}개 역) → {nxt}'
+            # total_dist 선언 위치 이동
             total_dist = self.routing[self.end]['shortestDist']
+            # 경로 안내 라인(구간별로 Label 분리, 환승역에서만 호선명 표시)
+            route_str = filtered_nodes[0]
             self.popup_opened = True
             popup = Toplevel(self.root)
             popup.title('경로 안내')
@@ -411,10 +424,16 @@ class SubwayApp:
             path_frame = ttk.Frame(popup, style='TFrame')
             path_frame.pack(pady=5)
             # 출발역
+            prev_line = station_to_line.get(filtered_nodes[0], "")
             ttk.Label(path_frame, text=filtered_nodes[0], style='RouteBold.TLabel').pack(side=LEFT)
             for prev, seg_dist, nxt in segs:
+                curr_line = station_to_line.get(nxt, "")
+                # 환승역에서만, 앞뒤 호선이 다를 때만 호선명 출력
+                if prev_line != curr_line and nxt in transfer_stations:
+                    ttk.Label(path_frame, text=f' ({curr_line})', style='RouteNormal.TLabel').pack(side=LEFT)
                 ttk.Label(path_frame, text=f' → ({seg_dist}개 역) → ', style='RouteNormal.TLabel').pack(side=LEFT)
                 ttk.Label(path_frame, text=nxt, style='RouteBold.TLabel').pack(side=LEFT)
+                prev_line = curr_line
             # 기존의 ttk.Label(popup, text=f'   {route_str}   ', style='TLabel').pack(pady=5) 부분 삭제
             # 굵게 표시할 부분만 Label 분리
             info_frame = ttk.Frame(popup, style='TFrame')
