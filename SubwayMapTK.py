@@ -356,20 +356,37 @@ class SubwayApp:
         # --- 여기서부터 경로 필터링 ---
         transfer_stations = [name for name, adj in SUBWAY.items() if len(adj) >= 3]
         if route:
-            filtered_route = [route[0]]  # 출발역
+            # 환승역만 추출 (출발, 도착 포함)
+            filtered_nodes = [route[0]]
             for station in route[1:-1]:
                 if station in transfer_stations:
-                    filtered_route.append(station)
+                    filtered_nodes.append(station)
             if len(route) > 1:
-                filtered_route.append(route[-1])  # 도착역
-            route_str = ' → '.join(filtered_route)
+                filtered_nodes.append(route[-1])
+            # 구간별 거리 계산
+            segs = []
+            seg_start_idx = 0
+            for i in range(1, len(filtered_nodes)):
+                seg_end = filtered_nodes[i]
+                seg_dist = 0
+                for j in range(seg_start_idx, len(route)):
+                    if route[j] == seg_end:
+                        break
+                    seg_dist += SUBWAY[route[j]][route[j+1]]
+                segs.append((filtered_nodes[i-1], seg_dist, seg_end))
+                seg_start_idx = route.index(seg_end)
+            # 경로 문자열 생성
+            route_str = filtered_nodes[0]
+            for prev, seg_dist, nxt in segs:
+                route_str += f' → ({seg_dist}개 역) → {nxt}'
+            total_dist = self.routing[self.end]['shortestDist']
             self.popup_opened = True
             popup = Toplevel(self.root)
             popup.title('경로 안내')
             popup.configure(bg='#f8f9fa')
             ttk.Label(popup, text=f'[{self.start} → {self.end}]', style='TLabel').pack(pady=5)
-            ttk.Label(popup, text=f'   경로: {route_str}   ', style='TLabel').pack(pady=5)
-            ttk.Label(popup, text=f'최단거리: {dist}', style='TLabel').pack(pady=5)
+            ttk.Label(popup, text=f'   {route_str}   ', style='TLabel').pack(pady=5)
+            ttk.Label(popup, text=f'{self.start}역에서 {self.end}역까지의 최단 경로는 총 {total_dist}개의 역을 지나야 합니다.', style='TLabel').pack(pady=5)
             ttk.Button(popup, text='확인', style='TButton', command=lambda: self._close_popup(popup)).pack(pady=10)
             popup.update_idletasks()
             x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
