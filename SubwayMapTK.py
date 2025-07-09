@@ -135,7 +135,7 @@ class SubwayApp:
 
     def _create_image_buttons(self):
         for x, y, text, line in BUTTON_COORDS:
-            btn_id = self.canvas.create_rectangle(0, 0, 20, 20, outline='', fill='', tags='invisible_btn')
+            btn_id = self.canvas.create_oval(0, 0, 20, 20, outline='', fill='', tags='invisible_btn')
             self.img_btns.append((text, x, y, line))
             self.img_btn_ids.append(btn_id)
 
@@ -373,7 +373,7 @@ class SubwayApp:
         if route:
             for idx, (station, _, _, _) in enumerate(self.img_btns):
                 if station in route:
-                    self.canvas.itemconfig(self.img_btn_ids[idx], fill='#ffe082', outline='#ff9800', width=3)  # 강조(노란색 배경, 주황 테두리)
+                    self.canvas.itemconfig(self.img_btn_ids[idx], fill='red', outline='black', width=3)  # 강조(노란색 배경, 주황 테두리)
                 else:
                     self.canvas.itemconfig(self.img_btn_ids[idx], fill='', outline='')  # 비경로는 투명
         # --- 여기서부터 경로 필터링 ---
