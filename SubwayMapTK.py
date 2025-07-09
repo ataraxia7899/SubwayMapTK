@@ -213,17 +213,9 @@ class SubwayApp:
         c_h = self.canvas.winfo_height() // 2
         self.update_image(center_x=c_w, center_y=c_h, scale_from=old_scale)
 
-    def on_invisible_btn_click(self, event):
-        for idx, btn_id in enumerate(self.img_btn_ids):
-            coords = self.canvas.coords(btn_id)
-            if coords[0] <= event.x <= coords[2] and coords[1] <= event.y <= coords[3]:
-                station = self.img_btns[idx][0]
-                self.show_station_select_popup(station)
-                break
-
-    # --- 역 버튼 클릭/드래그 구분용 함수 ---
     def on_btn_press(self, event):
         # 어떤 버튼 영역에 눌렀는지 확인
+        self.btn_click_candidate_idx = None
         for idx, btn_id in enumerate(self.img_btn_ids):
             coords = self.canvas.coords(btn_id)
             if coords[0] <= event.x <= coords[2] and coords[1] <= event.y <= coords[3]:
@@ -231,8 +223,6 @@ class SubwayApp:
                 self.btn_click_start_y = event.y
                 self.btn_click_candidate_idx = idx
                 break
-            else:
-                self.btn_click_candidate_idx = None
 
     def on_btn_release(self, event):
         if self.btn_click_candidate_idx is None:
@@ -364,7 +354,6 @@ class SubwayApp:
         route = self.routing[self.end]['route'] + [self.end] if self.routing[self.end]['route'] else []
         dist = self.routing[self.end]['shortestDist']
         # --- 여기서부터 경로 필터링 ---
-        from SubwayMap.SubwayData import SUBWAY
         transfer_stations = [name for name, adj in SUBWAY.items() if len(adj) >= 3]
         if route:
             filtered_route = [route[0]]  # 출발역
