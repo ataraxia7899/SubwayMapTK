@@ -1,8 +1,8 @@
 import copy
-from tkinter import *
+from tkinter import Tk, Toplevel, StringVar, Canvas, BOTH, LEFT, RIGHT, TOP, X, CENTER
 from tkinter import ttk
+from tkinter import font, Label
 from PIL import Image, ImageTk
-
 import sys
 sys.path.append('./SubwayMap')
 from SubwayData import BUTTON_COORDS, SUBWAY
@@ -17,8 +17,6 @@ class SubwayApp:
         self.img_max_scale = 3.0
         self.img_drag_start_x = 0
         self.img_drag_start_y = 0
-        self.click_start_x = 0
-        self.click_start_y = 0
         self.img_btns = []
         self.img_btn_ids = []
         self.routing = {place: {'shortestDist': 0, 'route': [], 'visited': 0} for place in SUBWAY.keys()}
@@ -51,6 +49,11 @@ class SubwayApp:
         style.configure('RouteBig.TLabel', font=('맑은 고딕', 16, 'bold'), background='#f8f9fa', foreground='#222')
         style.configure('RouteBold.TLabel', font=('맑은 고딕', 12, 'bold'), background='#f8f9fa', foreground='#222')
         style.configure('RouteNormal.TLabel', font=('맑은 고딕', 12), background='#f8f9fa', foreground='#222')
+        # 추가: 화살표 버튼 정사각형 스타일
+        style.configure('Arrow.TButton', font=('Arial', 18, 'bold'), padding=0, anchor='center')
+        # 추가: 동그라미 버튼 스타일
+        style.configure('Circle.TButton', font=('Arial', 18, 'bold'), foreground='#222', background='#e0e0e0', borderwidth=0, focusthickness=3, focuscolor='none', padding=0, anchor='center', relief='flat')
+        style.map('Circle.TButton', background=[('active', '#b3e5fc'), ('pressed', '#81d4fa')])
         self.root.configure(bg="#f8f9fa")
 
     def _init_ui(self):
@@ -63,8 +66,8 @@ class SubwayApp:
         
         # 출발역 선택
         self.start_frame = ttk.Frame(self.station_frame, style='TFrame')
-        self.start_frame.pack(side=LEFT, expand=True, padx=10)
-        ttk.Label(self.start_frame, text="출발역", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        self.start_frame.grid(row=0, column=0, padx=4, sticky='e')
+        ttk.Label(self.start_frame, text="출발역", style='TLabel', font=('맑은 고딕', 16, 'bold')).pack(side=TOP, pady=(0, 5))
         self.start_var = StringVar()
         self.start_combo = ttk.Combobox(self.start_frame, textvariable=self.start_var, values=self.station_list, 
                                        font=('맑은 고딕', 11), width=20, state='normal')
@@ -73,15 +76,17 @@ class SubwayApp:
         self.start_combo.bind('<KeyRelease>', self.on_start_search)
         self.start_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
         
-        # 화살표
-        self.arrow_label = ttk.Label(self.station_frame, text="➔", style='TLabel', 
-                                   font=('맑은 고딕', 16, 'bold'))
-        self.arrow_label.pack(side=LEFT, padx=20, pady=20)
+        # 화살표 (동그라미 Canvas 버튼)
+        self.arrow_canvas = Canvas(self.station_frame, width=48, height=48, highlightthickness=0, bg='#f8f9fa')
+        self.arrow_canvas.grid(row=0, column=1, padx=50, pady=8)
+        self.arrow_circle = self.arrow_canvas.create_oval(2, 2, 46, 46, fill='#e0e0e0', outline='#b3e5fc', width=2)
+        self.arrow_text = self.arrow_canvas.create_text(24, 24, text='➔', font=('Arial', 18, 'bold'), fill='#222')
+        self.arrow_canvas.bind('<Button-1>', lambda e: self.show_route_popup())
         
         # 도착역 선택
         self.end_frame = ttk.Frame(self.station_frame, style='TFrame')
-        self.end_frame.pack(side=LEFT, expand=True, padx=10)
-        ttk.Label(self.end_frame, text="도착역", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        self.end_frame.grid(row=0, column=2, padx=4, sticky='w')
+        ttk.Label(self.end_frame, text="도착역", style='TLabel', font=('맑은 고딕', 16, 'bold')).pack(side=TOP, pady=(0, 5))
         self.end_var = StringVar()
         self.end_combo = ttk.Combobox(self.end_frame, textvariable=self.end_var, values=self.station_list, 
                                      font=('맑은 고딕', 11), width=20, state='normal')
@@ -89,10 +94,12 @@ class SubwayApp:
         self.end_combo.bind('<<ComboboxSelected>>', self.on_end_station_selected)
         self.end_combo.bind('<KeyRelease>', self.on_end_search)
         self.end_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
-        
+        # 가운데 정렬을 위한 column weight 설정
+        self.station_frame.grid_columnconfigure(0, weight=1)
+        self.station_frame.grid_columnconfigure(1, weight=0)
+        self.station_frame.grid_columnconfigure(2, weight=1)
+
         # 길 찾기 버튼
-        self.find_route_btn = ttk.Button(self.top_frame, text='길 찾기', style='TButton', command=self.show_route_popup)
-        self.find_route_btn.pack(side=RIGHT, padx=20, pady=10)
 
         self.top_frame.grid_columnconfigure(0, weight=1)
         self.top_frame.grid_columnconfigure(1, weight=2)
@@ -106,11 +113,17 @@ class SubwayApp:
         self.img_id = self.canvas.create_image(0, 0, anchor=CENTER, image=self.img_tk)
         self.root.update()
         self._place_image_center()
-        # 확대/축소 버튼
-        self.plus_btn = ttk.Button(self.root, text='+', style='TbButton', command=self.zoom_in, width=2)
-        self.minus_btn = ttk.Button(self.root, text='-', style='TbButton', command=self.zoom_out, width=2)
-        self.plus_btn.place(relx=1.0, rely=1.0, x=-30, y=-120, anchor='se')
-        self.minus_btn.place(relx=1.0, rely=1.0, x=-30, y=-60, anchor='se')
+        # 확대/축소 버튼 (동그라미 Canvas 버튼)
+        self.plus_canvas = Canvas(self.root, width=48, height=48, highlightthickness=0, bg='#f8f9fa')
+        self.minus_canvas = Canvas(self.root, width=48, height=48, highlightthickness=0, bg='#f8f9fa')
+        self.plus_circle = self.plus_canvas.create_oval(2, 2, 46, 46, fill='#e0e0e0', outline='#b3e5fc', width=2)
+        self.plus_text = self.plus_canvas.create_text(24, 24, text='+', font=('Arial', 18, 'bold'), fill='#222')
+        self.minus_circle = self.minus_canvas.create_oval(2, 2, 46, 46, fill='#e0e0e0', outline='#b3e5fc', width=2)
+        self.minus_text = self.minus_canvas.create_text(24, 24, text='-', font=('Arial', 18, 'bold'), fill='#222')
+        self.plus_canvas.place(relx=1.0, rely=1.0, x=-30, y=-120, anchor='se')
+        self.minus_canvas.place(relx=1.0, rely=1.0, x=-30, y=-60, anchor='se')
+        self.plus_canvas.bind('<Button-1>', lambda e: self.zoom_in())
+        self.minus_canvas.bind('<Button-1>', lambda e: self.zoom_out())
         # 이벤트 바인딩
         self.root.bind("<MouseWheel>", self.on_mousewheel)
         self.canvas.bind('<ButtonPress-1>', self.on_button_press)
@@ -119,19 +132,17 @@ class SubwayApp:
         # 역 버튼 클릭/드래그 구분 바인딩
         self.canvas.tag_bind('invisible_btn', '<ButtonPress-1>', self.on_btn_press)
         self.canvas.tag_bind('invisible_btn', '<ButtonRelease-1>', self.on_btn_release)
-        # 기존 클릭 핸들러는 사용하지 않음
-        # self.canvas.tag_bind('invisible_btn', '<Button-1>', self.on_invisible_btn_click)
 
     def _create_image_buttons(self):
-        for x, y, text in BUTTON_COORDS:
+        for x, y, text, line in BUTTON_COORDS:
             btn_id = self.canvas.create_rectangle(0, 0, 20, 20, outline='', fill='', tags='invisible_btn')
-            self.img_btns.append((text, x, y))
+            self.img_btns.append((text, x, y, line))
             self.img_btn_ids.append(btn_id)
 
     def _update_all_img_btns(self):
         w, h = self.img.size
         img_cx, img_cy = self.canvas.coords(self.img_id)
-        for idx, (_, bx, by) in enumerate(self.img_btns):
+        for idx, (_, bx, by, _) in enumerate(self.img_btns):
             dx = (bx - w / 2) * self.img_scale
             dy = (by - h / 2) * self.img_scale
             btn_canvas_x = img_cx + dx
@@ -192,8 +203,6 @@ class SubwayApp:
     def on_button_press(self, event):
         self.img_drag_start_x = event.x
         self.img_drag_start_y = event.y
-        self.click_start_x = event.x
-        self.click_start_y = event.y
 
     def on_drag(self, event):
         dx = event.x - self.img_drag_start_x
@@ -235,8 +244,8 @@ class SubwayApp:
         dy = event.y - self.btn_click_start_y
         if abs(dx) < 5 and abs(dy) < 5:
             # 클릭으로 간주, 팝업 실행
-            station = self.img_btns[self.btn_click_candidate_idx][0]
-            self.show_station_select_popup(station)
+            station, _, _, line = self.img_btns[self.btn_click_candidate_idx]
+            self.show_station_select_popup(station, line)
         # 드래그면 아무 동작 안 함
         self.btn_click_candidate_idx = None
 
@@ -245,7 +254,7 @@ class SubwayApp:
         self.popup_opened = False
         popup.destroy()
 
-    def show_station_select_popup(self, station):
+    def show_station_select_popup(self, station, line):
         if self.popup_opened:
             return
         self.popup_opened = True
@@ -257,7 +266,7 @@ class SubwayApp:
         x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
         popup.geometry(f"+{x}+{y}")
-        ttk.Label(popup, text=f"{station}역을 출발/도착역으로 설정", style='TLabel').pack(pady=16)
+        ttk.Label(popup, text=f"{station}역 ({line}) 을 출발/도착역으로 설정", style='TLabel').pack(pady=16)
         btn_frame = ttk.Frame(popup, style='TFrame')
         btn_frame.pack(pady=8)
         ttk.Button(btn_frame, text="출발역으로", style='TButton', command=lambda: self.set_start_station(station, popup)).pack(side=LEFT, padx=10)
@@ -388,7 +397,6 @@ class SubwayApp:
             popup = Toplevel(self.root)
             popup.title('경로 안내')
             popup.configure(bg='#f8f9fa')
-            from tkinter import font, Label
             bold_font = font.Font(self.root, family='맑은 고딕', size=12, weight='bold')
             normal_font = font.Font(self.root, family='맑은 고딕', size=12)
             # [출발역 → 도착역] 안내 (출발/도착만 크게)
