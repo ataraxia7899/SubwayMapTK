@@ -63,8 +63,8 @@ class SubwayApp:
         
         # 출발역 선택
         self.start_frame = ttk.Frame(self.station_frame, style='TFrame')
-        self.start_frame.pack(side=LEFT, expand=True, padx=10)
-        ttk.Label(self.start_frame, text="출발역", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        self.start_frame.grid(row=0, column=0, padx=4, sticky='e')
+        ttk.Label(self.start_frame, text="출발역:", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
         self.start_var = StringVar()
         self.start_combo = ttk.Combobox(self.start_frame, textvariable=self.start_var, values=self.station_list, 
                                        font=('맑은 고딕', 11), width=20, state='normal')
@@ -76,12 +76,12 @@ class SubwayApp:
         # 화살표
         self.arrow_label = ttk.Label(self.station_frame, text="➔", style='TLabel', 
                                    font=('맑은 고딕', 16, 'bold'))
-        self.arrow_label.pack(side=LEFT, padx=20, pady=20)
+        self.arrow_label.grid(row=0, column=1, padx=8, pady=20)
         
         # 도착역 선택
         self.end_frame = ttk.Frame(self.station_frame, style='TFrame')
-        self.end_frame.pack(side=LEFT, expand=True, padx=10)
-        ttk.Label(self.end_frame, text="도착역", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        self.end_frame.grid(row=0, column=2, padx=4, sticky='w')
+        ttk.Label(self.end_frame, text="도착역:", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
         self.end_var = StringVar()
         self.end_combo = ttk.Combobox(self.end_frame, textvariable=self.end_var, values=self.station_list, 
                                      font=('맑은 고딕', 11), width=20, state='normal')
@@ -89,7 +89,11 @@ class SubwayApp:
         self.end_combo.bind('<<ComboboxSelected>>', self.on_end_station_selected)
         self.end_combo.bind('<KeyRelease>', self.on_end_search)
         self.end_combo.bind('<KeyPress-Return>', self._open_combo_dropdown)
-        
+        # 가운데 정렬을 위한 column weight 설정
+        self.station_frame.grid_columnconfigure(0, weight=1)
+        self.station_frame.grid_columnconfigure(1, weight=0)
+        self.station_frame.grid_columnconfigure(2, weight=1)
+
         # 길 찾기 버튼
         self.find_route_btn = ttk.Button(self.top_frame, text='길 찾기', style='TButton', command=self.show_route_popup)
         self.find_route_btn.pack(side=RIGHT, padx=20, pady=10)
