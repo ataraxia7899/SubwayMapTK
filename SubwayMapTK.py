@@ -317,15 +317,27 @@ class SubwayApp:
             self.visit_place(toVisit)
         route = self.routing[self.end]['route'] + [self.end] if self.routing[self.end]['route'] else []
         dist = self.routing[self.end]['shortestDist']
-        popup = Toplevel(self.root)
-        popup.title('경로 안내')
-        popup.configure(bg='#f8f9fa')
+        # --- 여기서부터 경로 필터링 ---
+        from SubwayMap.SubwayData import SUBWAY
+        transfer_stations = [name for name, adj in SUBWAY.items() if len(adj) >= 3]
         if route:
-            route_str = ' → '.join(route)
+            filtered_route = [route[0]]  # 출발역
+            for station in route[1:-1]:
+                if station in transfer_stations:
+                    filtered_route.append(station)
+            if len(route) > 1:
+                filtered_route.append(route[-1])  # 도착역
+            route_str = ' → '.join(filtered_route)
+            popup = Toplevel(self.root)
+            popup.title('경로 안내')
+            popup.configure(bg='#f8f9fa')
             ttk.Label(popup, text=f'[{self.start} → {self.end}]', style='TLabel').pack(pady=5)
             ttk.Label(popup, text=f'   경로: {route_str}   ', style='TLabel').pack(pady=5)
             ttk.Label(popup, text=f'최단거리: {dist}', style='TLabel').pack(pady=5)
         else:
+            popup = Toplevel(self.root)
+            popup.title('경로 안내')
+            popup.configure(bg='#f8f9fa')
             ttk.Label(popup, text='경로를 찾을 수 없습니다.', style='TLabel').pack(padx=20, pady=20)
         ttk.Button(popup, text='확인', style='TButton', command=popup.destroy).pack(pady=10)
         popup.update_idletasks()
