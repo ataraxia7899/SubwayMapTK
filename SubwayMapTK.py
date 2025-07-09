@@ -22,6 +22,9 @@ class SubwayApp:
         self.img_btns = []
         self.img_btn_ids = []
         self.routing = {place: {'shortestDist': 0, 'route': [], 'visited': 0} for place in SUBWAY.keys()}
+        # 역 목록 생성
+        self.station_list = list(SUBWAY.keys())
+        self.station_list.sort()
         self._init_style()
         self._init_ui()
         self._init_canvas()
@@ -38,19 +41,48 @@ class SubwayApp:
         style.map('TbButton', background=[('active', '#b3e5fc'), ('pressed', '#81d4fa')])
         style.configure('TLabel', font=('맑은 고딕', 12), background='#f8f9fa', foreground='#222')
         style.configure('TFrame', background='#f8f9fa')
+        style.configure('TCombobox', font=('맑은 고딕', 11), background='white', fieldbackground='white')
         self.root.configure(bg="#f8f9fa")
 
     def _init_ui(self):
         self.top_frame = ttk.Frame(self.root, style='TFrame')
         self.top_frame.pack(side=TOP, fill=X, pady=8)
-        self.center_frame = ttk.Frame(self.top_frame, style='TFrame')
-        self.center_frame.pack(side=TOP, fill=X, expand=True)
-        self.station_status_var = StringVar()
-        self.station_status_var.set("출발역: (미지정)     ➔     도착역: (미지정)")
-        self.station_status_label = ttk.Label(self.center_frame, textvariable=self.station_status_var, style='TLabel', anchor='center', font=('Arial', 16, 'bold'))
-        self.station_status_label.pack(expand=True, anchor='center', pady=8)
+        
+        # 출발역/도착역 선택 프레임
+        self.station_frame = ttk.Frame(self.top_frame, style='TFrame')
+        self.station_frame.pack(side=TOP, fill=X, expand=True, pady=8)
+        
+        # 출발역 선택
+        self.start_frame = ttk.Frame(self.station_frame, style='TFrame')
+        self.start_frame.pack(side=LEFT, expand=True, padx=10)
+        ttk.Label(self.start_frame, text="출발역:", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        self.start_var = StringVar()
+        self.start_combo = ttk.Combobox(self.start_frame, textvariable=self.start_var, values=self.station_list, 
+                                       font=('맑은 고딕', 11), width=20, state='normal')
+        self.start_combo.pack(side=TOP, fill=X)
+        self.start_combo.bind('<<ComboboxSelected>>', self.on_start_station_selected)
+        self.start_combo.bind('<KeyRelease>', self.on_start_search)
+        
+        # 화살표
+        self.arrow_label = ttk.Label(self.station_frame, text="➔", style='TLabel', 
+                                   font=('맑은 고딕', 16, 'bold'))
+        self.arrow_label.pack(side=LEFT, padx=20, pady=20)
+        
+        # 도착역 선택
+        self.end_frame = ttk.Frame(self.station_frame, style='TFrame')
+        self.end_frame.pack(side=LEFT, expand=True, padx=10)
+        ttk.Label(self.end_frame, text="도착역:", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=TOP, pady=(0, 5))
+        self.end_var = StringVar()
+        self.end_combo = ttk.Combobox(self.end_frame, textvariable=self.end_var, values=self.station_list, 
+                                     font=('맑은 고딕', 11), width=20, state='normal')
+        self.end_combo.pack(side=TOP, fill=X)
+        self.end_combo.bind('<<ComboboxSelected>>', self.on_end_station_selected)
+        self.end_combo.bind('<KeyRelease>', self.on_end_search)
+        
+        # 길 찾기 버튼
         self.find_route_btn = ttk.Button(self.top_frame, text='길 찾기', style='TButton', command=self.show_route_popup)
-        self.find_route_btn.pack(side=RIGHT, padx=20)
+        self.find_route_btn.pack(side=RIGHT, padx=20, pady=10)
+
         self.top_frame.grid_columnconfigure(0, weight=1)
         self.top_frame.grid_columnconfigure(1, weight=2)
         self.top_frame.grid_columnconfigure(2, weight=1)
@@ -196,23 +228,39 @@ class SubwayApp:
 
     def set_start_station(self, station, popup):
         self.start = station
-        self.update_station_status()
+        self.start_var.set(station)
         popup.destroy()
 
     def set_end_station(self, station, popup):
         self.end = station
-        self.update_station_status()
+        self.end_var.set(station)
         popup.destroy()
 
-    def update_station_status(self):
-        if self.start and self.end:
-            self.station_status_var.set(f"출발역: {self.start}     ➔     도착역: {self.end}")
-        elif self.start:
-            self.station_status_var.set(f"출발역: {self.start}     ➔     도착역: (미지정)")
-        elif self.end:
-            self.station_status_var.set(f"출발역: (미지정)     ➔     도착역: {self.end}")
+    def on_start_station_selected(self, event):
+        selected = self.start_var.get()
+        if selected in self.station_list:
+            self.start = selected
+
+    def on_end_station_selected(self, event):
+        selected = self.end_var.get()
+        if selected in self.station_list:
+            self.end = selected
+
+    def on_start_search(self, event):
+        search_term = self.start_var.get().lower()
+        if search_term:
+            filtered_stations = [station for station in self.station_list if search_term in station.lower()]
+            self.start_combo['values'] = filtered_stations
         else:
-            self.station_status_var.set("출발역: (미지정)     ➔     도착역: (미지정)")
+            self.start_combo['values'] = self.station_list
+
+    def on_end_search(self, event):
+        search_term = self.end_var.get().lower()
+        if search_term:
+            filtered_stations = [station for station in self.station_list if search_term in station.lower()]
+            self.end_combo['values'] = filtered_stations
+        else:
+            self.end_combo['values'] = self.station_list
 
     # --- 경로 탐색 및 안내 ---
     def show_route_popup(self):
