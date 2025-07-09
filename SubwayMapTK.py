@@ -317,6 +317,9 @@ class SubwayApp:
     def show_route_popup(self):
         if self.popup_opened:
             return
+        # 모든 역 버튼을 기본 상태(비활성/비강조)로 초기화
+        for btn_id in self.img_btn_ids:
+            self.canvas.itemconfig(btn_id, fill='', outline='')
         # 콤보박스에 입력된 값도 우선 반영
         start_input = self.start_var.get()
         end_input = self.end_var.get()
@@ -366,6 +369,13 @@ class SubwayApp:
             self.visit_place(toVisit)
         route = self.routing[self.end]['route'] + [self.end] if self.routing[self.end]['route'] else []
         dist = self.routing[self.end]['shortestDist']
+        # --- 경로 버튼 강조 및 visible 처리 ---
+        if route:
+            for idx, (station, _, _, _) in enumerate(self.img_btns):
+                if station in route:
+                    self.canvas.itemconfig(self.img_btn_ids[idx], fill='#ffe082', outline='#ff9800', width=3)  # 강조(노란색 배경, 주황 테두리)
+                else:
+                    self.canvas.itemconfig(self.img_btn_ids[idx], fill='', outline='')  # 비경로는 투명
         # --- 여기서부터 경로 필터링 ---
         transfer_stations = [name for name, adj in SUBWAY.items() if len(adj) >= 3]
         # BUTTON_COORDS에서 역-호선 매핑 생성
