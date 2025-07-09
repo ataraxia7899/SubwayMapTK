@@ -1,8 +1,8 @@
 import copy
-from tkinter import *
+from tkinter import Tk, Toplevel, StringVar, Canvas, BOTH, LEFT, RIGHT, TOP, X, CENTER
 from tkinter import ttk
+from tkinter import font, Label
 from PIL import Image, ImageTk
-
 import sys
 sys.path.append('./SubwayMap')
 from SubwayData import BUTTON_COORDS, SUBWAY
@@ -17,8 +17,6 @@ class SubwayApp:
         self.img_max_scale = 3.0
         self.img_drag_start_x = 0
         self.img_drag_start_y = 0
-        self.click_start_x = 0
-        self.click_start_y = 0
         self.img_btns = []
         self.img_btn_ids = []
         self.routing = {place: {'shortestDist': 0, 'route': [], 'visited': 0} for place in SUBWAY.keys()}
@@ -134,8 +132,6 @@ class SubwayApp:
         # 역 버튼 클릭/드래그 구분 바인딩
         self.canvas.tag_bind('invisible_btn', '<ButtonPress-1>', self.on_btn_press)
         self.canvas.tag_bind('invisible_btn', '<ButtonRelease-1>', self.on_btn_release)
-        # 기존 클릭 핸들러는 사용하지 않음
-        # self.canvas.tag_bind('invisible_btn', '<Button-1>', self.on_invisible_btn_click)
 
     def _create_image_buttons(self):
         for x, y, text in BUTTON_COORDS:
@@ -207,8 +203,6 @@ class SubwayApp:
     def on_button_press(self, event):
         self.img_drag_start_x = event.x
         self.img_drag_start_y = event.y
-        self.click_start_x = event.x
-        self.click_start_y = event.y
 
     def on_drag(self, event):
         dx = event.x - self.img_drag_start_x
@@ -403,7 +397,6 @@ class SubwayApp:
             popup = Toplevel(self.root)
             popup.title('경로 안내')
             popup.configure(bg='#f8f9fa')
-            from tkinter import font, Label
             bold_font = font.Font(self.root, family='맑은 고딕', size=12, weight='bold')
             normal_font = font.Font(self.root, family='맑은 고딕', size=12)
             # [출발역 → 도착역] 안내 (출발/도착만 크게)
