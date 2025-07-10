@@ -8,6 +8,17 @@ import sys
 sys.path.append('./SubwayMap')
 from SubwayData import BUTTON_COORDS, SUBWAY
 
+def get_mouse_click_coor(event):
+    # """마우스 클릭 시 좌표 값을 출력하고 클립보드에 복사하는 함수"""
+    x = event.x
+    y = event.y
+    coordinates = f"{x}, {y}" # 좌표 문자열 생성
+    print(f"클릭 좌표: {coordinates}")
+    # 클립보드에 복사
+    root.clipboard_clear()  # 기존 클립보드 내용 삭제
+    root.clipboard_append(coordinates) # 새로운 좌표 추가
+    print(f"좌표 '{coordinates}'가 클립보드에 복사되었습니다.")
+
 class SubwayApp:
     def __init__(self, root):
         self.root = root
@@ -1039,8 +1050,23 @@ class SubwayApp:
                                 arrival_time = arrival_times.get(station_code, '')
                         except Exception as e:
                             arrival_time = ''
+                        # 소요시간 계산 추가
+                        travel_time = None
                         if arrival_time:
-                            result_text = f"다음 열차: {next_train['departure_time']} (열차번호: {next_train['train_id']}, 방향: {next_train['direction']}, 요일: {next_train['day_type']})\n예상 도착시간: {arrival_time}"
+                            try:
+                                dep_dt = datetime.strptime(next_train['departure_time'], '%H:%M')
+                                arr_dt = datetime.strptime(arrival_time, '%H:%M')
+                                # 도착이 출발보다 빠르면(자정 넘김) 하루 더함
+                                if arr_dt < dep_dt:
+                                    arr_dt = arr_dt.replace(day=arr_dt.day + 1)
+                                travel_time = int((arr_dt - dep_dt).total_seconds() / 60)
+                            except:
+                                travel_time = None
+                        if arrival_time:
+                            if travel_time is not None:
+                                result_text = f"다음 열차: {next_train['departure_time']} (열차번호: {next_train['train_id']}, 방향: {next_train['direction']}, 요일: {next_train['day_type']})\n예상 도착시간: {arrival_time}\n소요시간: {travel_time}분"
+                            else:
+                                result_text = f"다음 열차: {next_train['departure_time']} (열차번호: {next_train['train_id']}, 방향: {next_train['direction']}, 요일: {next_train['day_type']})\n예상 도착시간: {arrival_time}\n소요시간: 정보 없음"
                         else:
                             result_text = f"다음 열차: {next_train['departure_time']} (열차번호: {next_train['train_id']}, 방향: {next_train['direction']}, 요일: {next_train['day_type']})\n예상 도착시간: 정보 없음"
                         result_var.set(result_text)
@@ -1051,6 +1077,7 @@ class SubwayApp:
                     curr_time = input_dt
                     msg_lines = []
                     total_wait = 0
+                    first_departure_time = None  # 첫 구간 실제 출발시간 저장용
                     for idx, (seg_start, seg_end, line) in enumerate(segments):
                         print(f"DEBUG: {idx+1}구간: {seg_start} → {seg_end} ({line}) | input_day={input_day}")
                         times = self.get_station_times(seg_start)
@@ -1141,6 +1168,8 @@ class SubwayApp:
                                         msg_lines.append(f"[환승] {seg_end}에서 {next_line} 환승 (대기 {wait_min}분)")
                                         total_wait += wait_min
                                         curr_time = datetime.strptime(next_departure, '%H:%M')
+                                        if idx == 0:
+                                            first_departure_time = next_train['departure_time']
                                     else:
                                         msg_lines.append(f"[환승] {seg_end}에서 {next_line} 환승 (환승 후 열차 없음)")
                                         print(f"DEBUG: [환승] {seg_end}에서 {next_line} 환승 (환승 후 열차 없음)")
@@ -1177,6 +1206,8 @@ class SubwayApp:
                                         msg_lines.append(f"[환승] {seg_end}에서 {next_line} 환승 (대기 {wait_min}분)")
                                         total_wait += wait_min
                                         curr_time = datetime.strptime(next_departure, '%H:%M')
+                                        if idx == 0:
+                                            first_departure_time = next_train['departure_time']
                                     else:
                                         msg_lines.append(f"[환승] {seg_end}에서 {next_line} 환승 (환승 후 열차 없음)")
                                         print(f"DEBUG: [환승] {seg_end}에서 {next_line} 환승 (환승 후 열차 없음)")
@@ -1191,7 +1222,6 @@ class SubwayApp:
                         if arrival_time:
                             final_arrival = arrival_time
                         else:
-                            # 마지막 구간의 next_train이 있으면 그 출발시간 + 5분 추정
                             if next_train and next_train.get('departure_time'):
                                 try:
                                     t = datetime.strptime(next_train['departure_time'], '%H:%M')
@@ -1201,19 +1231,27 @@ class SubwayApp:
                                     final_arrival = t.strftime('%H:%M')
                                 except:
                                     final_arrival = None
-                        # 총 소요시간 계산
+                        # 총 소요시간 계산 (첫 구간 실제 출발시간 기준)
                         total_travel_time = 0
-                        if final_arrival:
+                        if final_arrival and first_departure_time:
                             try:
-                                start_time = datetime.strptime(input_time, '%H:%M')
+                                start_time = datetime.strptime(first_departure_time, '%H:%M')
                                 end_time = datetime.strptime(final_arrival, '%H:%M')
-                                # 다음날로 넘어가는 경우 처리
                                 if end_time < start_time:
                                     end_time = end_time.replace(day=end_time.day + 1)
                                 total_travel_time = int((end_time - start_time).total_seconds() / 60)
                             except:
                                 total_travel_time = 0
-                        
+                        elif final_arrival:
+                            try:
+                                # fallback: 기존 input_time 기준
+                                start_time = datetime.strptime(input_time, '%H:%M')
+                                end_time = datetime.strptime(final_arrival, '%H:%M')
+                                if end_time < start_time:
+                                    end_time = end_time.replace(day=end_time.day + 1)
+                                total_travel_time = int((end_time - start_time).total_seconds() / 60)
+                            except:
+                                total_travel_time = 0
                         if final_arrival:
                             msg_lines.append(f"총 환승 대기시간: {total_wait}분, 소요시간: {total_travel_time}분, 최종 도착: {final_arrival}")
                         else:
@@ -1293,4 +1331,5 @@ if __name__ == "__main__":
     root.title("Subway Map")
     root.geometry("900x700")
     app = SubwayApp(root)
+    root.bind("<Button-1>", get_mouse_click_coor)
     root.mainloop()
