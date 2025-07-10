@@ -1128,7 +1128,7 @@ class SubwayApp:
                                     for t in next_filtered:
                                         if t['departure_time'] not in next_unique:
                                             next_unique[t['departure_time']] = t
-                                    next_valid = list(next_unique.values())
+                                    next_valid = [t for t in next_unique.values() if is_valid_time(t['departure_time'])]
                                     next_valid.sort(key=lambda t: datetime.strptime(t['departure_time'], '%H:%M'))
                                     print(f"DEBUG: next_valid: {next_valid}")
                                     next_departure = None
@@ -1164,7 +1164,7 @@ class SubwayApp:
                                     for t in next_filtered:
                                         if t['departure_time'] not in next_unique:
                                             next_unique[t['departure_time']] = t
-                                    next_valid = list(next_unique.values())
+                                    next_valid = [t for t in next_unique.values() if is_valid_time(t['departure_time'])]
                                     next_valid.sort(key=lambda t: datetime.strptime(t['departure_time'], '%H:%M'))
                                     print(f"DEBUG: next_valid: {next_valid}")
                                     next_departure = None
