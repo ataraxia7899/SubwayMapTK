@@ -1,6 +1,5 @@
-import copy
 import pandas as pd
-from datetime import datetime, time
+from datetime import datetime
 from tkinter import Tk, Toplevel, StringVar, Canvas, BOTH, LEFT, RIGHT, TOP, X, CENTER
 from tkinter import ttk
 from tkinter import font, Label
@@ -1249,15 +1248,6 @@ class SubwayApp:
             popup.geometry(f"+{x}+{y}")
             popup.protocol("WM_DELETE_WINDOW", lambda: self._close_popup(popup))
 
-    def visit_place(self, visit):
-        self.routing[visit]['visited'] = 1
-        for togo, betweenDist in SUBWAY[visit].items():
-            toDist = self.routing[visit]['shortestDist'] + betweenDist
-            if (self.routing[togo]['shortestDist'] >= toDist) or not self.routing[togo]['route']:
-                self.routing[togo]['shortestDist'] = toDist
-                self.routing[togo]['route'] = copy.deepcopy(self.routing[visit]['route'])
-                self.routing[togo]['route'].append(visit)
-
     def find_min_transfer_route(self, start, end):
         from collections import deque
         station_to_line = {text: line for _, _, text, line in BUTTON_COORDS}
@@ -1290,88 +1280,6 @@ class SubwayApp:
             return [], 0, 0
         return min_route, min_dist, min_transfer
 
-    # 환승 포함 다음 열차 안내 함수 및 버튼 추가
-    def show_transfer_route_next_train(self):
-        input_hour = hour_var.get()
-        input_min = min_var.get()
-        input_time = f"{input_hour}:{input_min}"
-        input_day = day_var.get()
-        try:
-            input_dt = datetime.strptime(input_time, '%H:%M')
-        except Exception as e:
-            result_var.set('시간 형식이 올바르지 않습니다. (예: 08:30)')
-            return
-        # 경로 및 구간 분리
-        route, dist, transfer_count = (self.find_shortest_route_with_transfer(self.start, self.end)
-                                       if self.route_mode_var.get() == 'shortest'
-                                       else self.find_min_transfer_route(self.start, self.end))
-        if not route or len(route) < 2:
-            result_var.set('경로를 찾을 수 없습니다.')
-            return
-        # BUTTON_COORDS에서 역-호선 매핑
-        station_to_line = {text: line for _, _, text, line in BUTTON_COORDS}
-        # 구간 분리 (호선이 바뀌는 지점마다)
-        segments = []  # [(start, end, line)]
-        curr_line = station_to_line.get(route[0], '').split('/')[0]
-        seg_start = route[0]
-        for i in range(1, len(route)):
-            next_line = station_to_line.get(route[i], '').split('/')[0]
-            if next_line != curr_line:
-                segments.append((seg_start, route[i-1], curr_line))
-                seg_start = route[i-1]
-                curr_line = next_line
-        segments.append((seg_start, route[-1], curr_line))
-        # 각 구간별로 다음 열차 찾기
-        curr_time = input_dt
-        msg_lines = []
-        total_wait = 0
-        total_travel = 0
-        for idx, (seg_start, seg_end, line) in enumerate(segments):
-            # 방향 구하기
-            seg_stations = route[route.index(seg_start):route.index(seg_end)+1]
-            direction = None
-            # 해당 구간의 출발역에서 출발하는 열차 중, 도착역에도 정차하는 열차를 찾음
-            times = self.get_station_times(seg_start)
-            filtered_times = [t for t in times if t['day_type'] == input_day and t['line'] == line]
-            unique_times = {}
-            for t in filtered_times:
-                if t['departure_time'] not in unique_times:
-                    unique_times[t['departure_time']] = t
-            valid_times = list(unique_times.values())
-            valid_times.sort(key=lambda t: datetime.strptime(t['departure_time'], '%H:%M'))
-            next_train = None
-            arrival_time = ''
-            for t in valid_times:
-                if datetime.strptime(t['departure_time'], '%H:%M') >= curr_time:
-                    # 이 열차가 seg_end에도 정차하는지 확인
-                    try:
-                        row = self.time_data[(self.time_data['열차번호'] == t['train_id']) &
-                                             (self.time_data['노선명'] == t['line']) &
-                                             (self.time_data['운행구간기점명'] + ' → ' + self.time_data['운행구간종점명'] == t['direction']) &
-                                             (self.time_data['요일구분'] == t['day_type'])].iloc[0]
-                        stations_str = row['운행구간정거장']
-                        arrival_times_str = row['정거장도착시각']
-                        stations = [s.split('-', 1)[1].strip().replace('역', '').strip() if '-' in s else s.strip().replace('역', '').strip() for s in stations_str.split('+')]
-                        if seg_end.strip().replace('역', '').strip() in stations:
-                            idx2 = stations.index(seg_end.strip().replace('역', '').strip())
-                            arrival_times = self.parse_time_string(arrival_times_str)
-                            station_code = f"{idx2+1:03d}"
-                            arrival_time = arrival_times.get(station_code, '')
-                            next_train = t
-                            break
-                    except Exception as e:
-                        continue
-                msg_lines.append(f"[{idx+1}구간] {seg_start} → {seg_end} ({line})\n  - {next_train['departure_time']} 출발, {arrival_time if arrival_time else '정보 없음'} 도착, 열차번호 {next_train['train_id']}, 방향: {next_train['direction']}")
-            if not next_train:
-                msg_lines.append(f"[{idx+1}구간] {seg_start} → {seg_end} ({line})\n  - {curr_time.strftime('%H:%M')} 이후 출발하는 열차가 없습니다.")
-                break
-            if msg_lines:
-                msg_lines.append(f"총 소요시간: {total_travel}분 (환승 대기 {total_wait}분 포함)")
-                result_var.set('\n'.join(msg_lines))
-            else:
-                result_var.set('안내할 수 있는 열차가 없습니다.')
-        ttk.Button(button_frame, text='환승 포함 다음 열차 안내', style='TButton', command=show_transfer_route_next_train).pack(side=LEFT, padx=5)
-
     def is_transfer_station(self, station):
         """SUBWAY에서 인접 노드가 3개 이상이면 환승역으로 간주"""
         return len(SUBWAY.get(station, {})) >= 3
@@ -1379,60 +1287,6 @@ class SubwayApp:
     def normalize_station_name(self, name):
         """역 이름을 완전히 정규화 (공백, '역', 소문자)"""
         return name.strip().replace('역', '').replace(' ', '').lower()
-
-    def get_transfer_segments(self, route):
-        """출발역, 환승역(노선이 바뀌는 실제 환승역), 도착역만 추출하여 구간을 나눔 (환승역에서만 환승 인정)"""
-        segments = []
-        station_to_line = {text: line for _, _, text, line in BUTTON_COORDS}
-        prev_station = route[0]
-        prev_lines = set(station_to_line.get(prev_station, '').split('/'))
-        for i in range(1, len(route)):
-            curr_station = route[i]
-            curr_lines = set(station_to_line.get(curr_station, '').split('/'))
-            # 환승역에서만, 노선 교집합이 없을 때만 환승 인정
-            if not prev_lines & curr_lines and self.is_transfer_station(curr_station):
-                segments.append((prev_station, curr_station, list(curr_lines)[0]))
-                prev_station = curr_station
-                prev_lines = curr_lines
-            else:
-                prev_lines = prev_lines & curr_lines if prev_lines & curr_lines else curr_lines
-        # 마지막 구간 추가
-        if prev_station != route[-1]:
-            curr_station = route[-1]
-            curr_lines = set(station_to_line.get(curr_station, '').split('/'))
-            segments.append((prev_station, curr_station, list(curr_lines)[0]))
-        return segments
-
-    def print_transfer_segments_times(self, transfer_nodes, input_day):
-        station_to_line = {text: line for _, _, text, line in BUTTON_COORDS}
-        for i in range(len(transfer_nodes)-1):
-            seg_start = transfer_nodes[i]
-            seg_end = transfer_nodes[i+1]
-            # 전 역의 노선(환승역이면 그 전 역의 노선)
-            if i == 0:
-                prev_lines = set(station_to_line.get(seg_start, '').split('/'))
-            else:
-                prev_station = transfer_nodes[i-1]
-                prev_lines = set(station_to_line.get(prev_station, '').split('/'))
-            end_lines = set(station_to_line.get(seg_end, '').split('/'))
-            common_lines = prev_lines & end_lines
-            times = self.get_station_times(seg_start, seg_end)
-            print(f"==== {seg_start} → {seg_end} ====")
-            for t in times:
-                print(f"  - line={t['line']}, day_type={t['day_type']}, departure_time={t['departure_time']}")
-            if not common_lines:
-                print(f"{seg_start} → {seg_end}: 노선 교집합 없음!")
-            for line in common_lines:
-                # 강제 필터: 해당 노선만 포함, 나머지 노선이 포함된 데이터는 무조건 제외
-                filtered_times = [
-                    t for t in times
-                    if self.normalize_station_name(line) in [self.normalize_station_name(l) for l in t['line'].split('/')]
-                    and all(self.normalize_station_name(line) == self.normalize_station_name(l) for l in t['line'].split('/'))
-                    and t['day_type'] == input_day
-                ]
-                print(f"{seg_start} → {seg_end} ({line}) 강제필터 직통 열차 개수: {len(filtered_times)}")
-                for t in filtered_times:
-                    print(f"  - {t}")
 
 if __name__ == "__main__":
     root = Tk()
