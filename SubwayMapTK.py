@@ -1,4 +1,6 @@
 import copy
+import pandas as pd
+from datetime import datetime, time
 from tkinter import Tk, Toplevel, StringVar, Canvas, BOTH, LEFT, RIGHT, TOP, X, CENTER
 from tkinter import ttk
 from tkinter import font, Label
@@ -27,12 +29,349 @@ class SubwayApp:
         # 역 목록 생성
         self.station_list = list(SUBWAY.keys())
         self.station_list.sort()
+        
+        # 디버깅: station_list에 "숙등"과 "남산정"이 있는지 확인
+        print(f"DEBUG: station_list에 '숙등' 포함: {'숙등' in self.station_list}")
+        print(f"DEBUG: station_list에 '남산정' 포함: {'남산정' in self.station_list}")
+        print(f"DEBUG: station_list 길이: {len(self.station_list)}")
+        print(f"DEBUG: station_list 처음 10개: {self.station_list[:10]}")
+        print(f"DEBUG: station_list 마지막 10개: {self.station_list[-10:]}")
         self.popup_opened = False  # 팝업 중복 방지 플래그
+        self.time_popup_opened = False  # 시간표 팝업 중복 방지 플래그
+        
+        # 시간 정보 관련 변수 추가
+        self.time_data = None
+        self.load_time_data()
+        
         self._init_style()
         self._init_ui()
         self._init_canvas()
         self._create_image_buttons()
         self._update_all_img_btns()
+
+    def load_time_data(self):
+        """CSV 파일에서 시간 정보를 로드합니다."""
+        try:
+            self.time_data = pd.read_csv('./SubwayData/Subway.csv', encoding='cp949')
+            print(f"시간 데이터 로드 완료: {len(self.time_data)}개 레코드")
+            
+            # 역 이름별 인덱스 생성 (성능 최적화)
+            self.station_index = {}
+            for _, row in self.time_data.iterrows():
+                stations_str = row['운행구간정거장']
+                if pd.isna(stations_str):
+                    continue
+                
+                stations = stations_str.split('+')
+                for i, station_info in enumerate(stations):
+                    if '-' in station_info:
+                        station_code, station_full_name = station_info.split('-', 1)
+                        normalized_name = station_full_name.strip().replace('역', '').strip()
+                        if normalized_name not in self.station_index:
+                            self.station_index[normalized_name] = []
+                        self.station_index[normalized_name].append((row.name, i))
+                    else:
+                        normalized_name = station_info.strip().replace('역', '').strip()
+                        if normalized_name not in self.station_index:
+                            self.station_index[normalized_name] = []
+                        self.station_index[normalized_name].append((row.name, i))
+            
+            print(f"역 이름 인덱스 생성 완료: {len(self.station_index)}개 역")
+            
+        except Exception as e:
+            print(f"시간 데이터 로드 실패: {e}")
+            self.time_data = None
+            self.station_index = {}
+
+    def parse_time_string(self, time_str):
+        """시간 문자열을 파싱합니다. (예: '001-05:08+002-05:09')"""
+        if pd.isna(time_str) or time_str == '':
+            return {}
+        
+        times = {}
+        try:
+            # '+'로 분리하여 각 정거장의 시간 정보 추출
+            parts = time_str.split('+')
+            print(f"DEBUG: 시간 문자열 파싱 - 원본: '{time_str}'")
+            print(f"DEBUG: 분리된 부분들: {parts}")
+            for part in parts:
+                if '-' in part:
+                    station_code, time_info = part.split('-', 1)
+                    # 시간 형식이 HH:MM인지 확인
+                    if ':' in time_info:
+                        times[station_code] = time_info
+                        print(f"DEBUG: 시간 정보 추가 - 역코드: {station_code}, 시간: {time_info}")
+        except Exception as e:
+            print(f"시간 파싱 오류: {e}")
+        
+        print(f"DEBUG: 파싱된 시간 개수: {len(times)}")
+        return times
+
+    def get_station_times(self, station_name, dest_station_name=None, direction='both'):
+        """특정 역의 시간표를 가져옵니다. (dest_station_name이 있으면 방향 체크)"""
+        if self.time_data is None:
+            with open('debug.log', 'a', encoding='utf-8') as f:
+                f.write("DEBUG: time_data가 None입니다.\n")
+            return []
+        
+        # 역 이름 정규화 (공백 제거, "역" 글자 제거)
+        normalized_station_name = station_name.strip().replace('역', '').strip()
+        normalized_dest_name = dest_station_name.strip().replace('역', '').strip() if dest_station_name else None
+        
+        station_times = []
+        
+        if normalized_dest_name:
+            # 출발역과 도착역의 인덱스를 비교해서 정방향 열차만 안내
+            for _, row in self.time_data.iterrows():
+                stations_str = row['운행구간정거장']
+                arrival_times_str = row['정거장도착시각']
+                departure_times_str = row['정거장출발시각']
+                if pd.isna(stations_str):
+                    continue
+                stations = stations_str.split('+')
+                station_names = []
+                for s in stations:
+                    if '-' in s:
+                        _, name = s.split('-', 1)
+                        station_names.append(name.strip().replace('역', '').strip())
+                if normalized_station_name in station_names and normalized_dest_name in station_names:
+                    idx_start = station_names.index(normalized_station_name)
+                    idx_end = station_names.index(normalized_dest_name)
+                    if idx_start < idx_end:
+                        # 정방향 열차만 안내
+                        station_index = idx_start
+                        arrival_times = self.parse_time_string(arrival_times_str)
+                        departure_times = self.parse_time_string(departure_times_str)
+                        station_code = f"{station_index+1:03d}"
+                        arrival_time = arrival_times.get(station_code, '')
+                        departure_time = departure_times.get(station_code, '')
+                        if arrival_time or departure_time:
+                            train_info = {
+                                'train_id': row['열차번호'],
+                                'line': row['노선명'],
+                                'direction': f"{row['운행구간기점명']} → {row['운행구간종점명']}",
+                                'day_type': row['요일구분'],
+                                'arrival_time': arrival_time,
+                                'departure_time': departure_time,
+                                'speed': row['운행속도']
+                            }
+                            print(f"DEBUG: 선택된 열차 - 번호: {train_info['train_id']}, 방향: {train_info['direction']}, 출발시간: {train_info['departure_time']}")
+                            station_times.append(train_info)
+            with open('debug.log', 'a', encoding='utf-8') as f:
+                f.write(f"DEBUG: 찾은 시간표 개수: {len(station_times)}\n")
+            return station_times
+        # 기존 로직 (도착역이 없는 경우)
+        # 미리 생성된 인덱스를 사용하여 역 찾기
+        if normalized_station_name in self.station_index:
+            for row_idx, station_idx in self.station_index[normalized_station_name]:
+                row = self.time_data.loc[row_idx]
+                arrival_times_str = row['정거장도착시각']
+                departure_times_str = row['정거장출발시각']
+                
+                # 시간 정보 파싱
+                arrival_times = self.parse_time_string(arrival_times_str)
+                departure_times = self.parse_time_string(departure_times_str)
+                
+                # 해당 역의 시간 정보 추출
+                station_code = f"{station_idx+1:03d}"
+                arrival_time = arrival_times.get(station_code, '')
+                departure_time = departure_times.get(station_code, '')
+                
+                if arrival_time or departure_time:
+                    station_times.append({
+                        'train_id': row['열차번호'],
+                        'line': row['노선명'],
+                        'direction': f"{row['운행구간기점명']} → {row['운행구간종점명']}",
+                        'day_type': row['요일구분'],
+                        'arrival_time': arrival_time,
+                        'departure_time': departure_time,
+                        'speed': row['운행속도']
+                    })
+        else:
+            with open('debug.log', 'a', encoding='utf-8') as f:
+                f.write(f"DEBUG: 해당 역 이름 '{normalized_station_name}'에 대한 시간 정보를 찾을 수 없습니다.\n")
+        
+        with open('debug.log', 'a', encoding='utf-8') as f:
+            f.write(f"DEBUG: 찾은 시간표 개수: {len(station_times)}\n")
+        return station_times
+
+    def show_time_table_popup(self, station_name, default_direction=None):
+        """시간표 팝업을 표시합니다."""
+        # 임시로 플래그 체크 제거 (팝업이 안 뜨는 문제 해결)
+        # if self.time_popup_opened:
+        #     return
+        
+        station_times = self.get_station_times(station_name)
+        
+        if not station_times:
+            # 시간 정보가 없는 경우 간단한 메시지 표시
+            popup = Toplevel(self.root)
+            popup.title(f"{station_name} 시간표")
+            popup.geometry("400x200")
+            popup.configure(bg='#f8f9fa')
+            
+            ttk.Label(popup, text=f"{station_name}역", 
+                     style='RouteBig.TLabel').pack(pady=20)
+            ttk.Label(popup, text="시간 정보를 찾을 수 없습니다.", 
+                     style='RouteNormal.TLabel').pack(pady=10)
+            
+            ttk.Button(popup, text="닫기", 
+                      command=lambda: self._close_popup(popup)).pack(pady=20)
+            
+            self.time_popup_opened = True
+            popup.protocol("WM_DELETE_WINDOW", lambda: self._close_time_popup(popup))
+            return
+        
+        # 시간표 팝업 생성
+        popup = Toplevel(self.root)
+        popup.title(f"{station_name} 시간표")
+        popup.geometry("900x700")
+        popup.configure(bg='#f8f9fa')
+        
+        # 메인 프레임
+        main_frame = ttk.Frame(popup, style='TFrame')
+        main_frame.pack(fill=BOTH, expand=True, padx=20, pady=20)
+        
+        # 제목
+        title_label = ttk.Label(main_frame, text=f"{station_name}역 시간표", 
+                               style='RouteBig.TLabel')
+        title_label.pack(pady=(0, 20))
+        
+        # 필터 프레임
+        filter_frame = ttk.Frame(main_frame, style='TFrame')
+        filter_frame.pack(fill=X, pady=(0, 10))
+        
+        # 요일 필터
+        ttk.Label(filter_frame, text="요일:", style='RouteBold.TLabel').pack(side=LEFT, padx=(0, 5))
+        day_var = StringVar(value="전체")
+        day_combo = ttk.Combobox(filter_frame, textvariable=day_var, 
+                                values=["전체", "평일", "토요일", "일요일"], 
+                                width=10, state='normal')
+        day_combo.pack(side=LEFT, padx=(0, 20))
+        
+        # 시간대 필터
+        ttk.Label(filter_frame, text="시간대:", style='RouteBold.TLabel').pack(side=LEFT, padx=(0, 5))
+        time_var = StringVar(value="전체")
+        time_combo = ttk.Combobox(filter_frame, textvariable=time_var, 
+                                 values=["전체", "새벽(05-07)", "오전(07-12)", "오후(12-18)", "저녁(18-24)"], 
+                                 width=12, state='normal')
+        time_combo.pack(side=LEFT, padx=(0, 20))
+        
+        # 방향 필터 추가
+        direction_values = list(sorted(set([t['direction'] for t in station_times if t.get('direction')])))
+        direction_values = ['전체'] + direction_values
+        ttk.Label(filter_frame, text="방향:", style='RouteBold.TLabel').pack(side=LEFT, padx=(0, 5))
+        direction_var = StringVar(value=default_direction if (default_direction in direction_values) else "전체")
+        direction_combo = ttk.Combobox(filter_frame, textvariable=direction_var, values=direction_values, width=20, state='normal')
+        direction_combo.pack(side=LEFT, padx=(0, 20))
+        
+        # 스크롤 가능한 프레임
+        canvas = Canvas(main_frame, bg='#f8f9fa', highlightthickness=0)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas, style='TFrame')
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # 시간표 헤더
+        header_frame = ttk.Frame(scrollable_frame, style='TFrame')
+        header_frame.pack(fill=X, pady=(0, 10))
+        
+        headers = ['열차번호', '노선', '방향', '요일', '도착시간', '출발시간', '속도']
+        for i, header in enumerate(headers):
+            ttk.Label(header_frame, text=header, style='RouteBold.TLabel', 
+                     width=12 if i < 3 else 10).grid(row=0, column=i, padx=2, pady=5)
+        
+        # 필터링 함수
+        def filter_times():
+            # 기존 시간표 데이터 제거
+            for widget in scrollable_frame.winfo_children():
+                if widget != header_frame:
+                    widget.destroy()
+            
+            # 필터 조건
+            selected_day = day_var.get()
+            selected_time = time_var.get()
+            selected_direction = direction_var.get()
+            
+            # 시간대별 시간 범위
+            time_ranges = {
+                "새벽(05-07)": ("05:00", "07:00"),
+                "오전(07-12)": ("07:00", "12:00"),
+                "오후(12-18)": ("12:00", "18:00"),
+                "저녁(18-24)": ("18:00", "24:00")
+            }
+            
+            filtered_times = []
+            for time_info in station_times:
+                # 요일 필터
+                if selected_day != "전체" and time_info['day_type'] != selected_day:
+                    continue
+                # 방향 필터
+                if selected_direction != "전체" and time_info['direction'] != selected_direction:
+                    continue
+                # 시간대 필터
+                if selected_time != "전체":
+                    time_range = time_ranges.get(selected_time)
+                    if time_range:
+                        start_time, end_time = time_range
+                        arrival_time = time_info['arrival_time']
+                        departure_time = time_info['departure_time']
+                        
+                        # 도착시간이나 출발시간이 선택된 시간대에 포함되는지 확인
+                        time_in_range = False
+                        if arrival_time and start_time <= arrival_time <= end_time:
+                            time_in_range = True
+                        if departure_time and start_time <= departure_time <= end_time:
+                            time_in_range = True
+                        
+                        if not time_in_range:
+                            continue
+                
+                filtered_times.append(time_info)
+            
+            # 필터링된 시간표 표시
+            for i, time_info in enumerate(filtered_times):
+                row_frame = ttk.Frame(scrollable_frame, style='TFrame')
+                row_frame.pack(fill=X, pady=2)
+                
+                ttk.Label(row_frame, text=time_info['train_id'], 
+                         style='RouteNormal.TLabel', width=12).grid(row=0, column=0, padx=2, pady=3)
+                ttk.Label(row_frame, text=time_info['line'], 
+                         style='RouteNormal.TLabel', width=12).grid(row=0, column=1, padx=2, pady=3)
+                ttk.Label(row_frame, text=time_info['direction'], 
+                         style='RouteNormal.TLabel', width=12).grid(row=0, column=2, padx=2, pady=3)
+                ttk.Label(row_frame, text=time_info['day_type'], 
+                         style='RouteNormal.TLabel', width=10).grid(row=0, column=3, padx=2, pady=3)
+                ttk.Label(row_frame, text=time_info['arrival_time'], 
+                         style='RouteNormal.TLabel', width=10).grid(row=0, column=4, padx=2, pady=3)
+                ttk.Label(row_frame, text=time_info['departure_time'], 
+                         style='RouteNormal.TLabel', width=10).grid(row=0, column=5, padx=2, pady=3)
+                ttk.Label(row_frame, text=time_info['speed'], 
+                         style='RouteNormal.TLabel', width=10).grid(row=0, column=6, padx=2, pady=3)
+        
+        # 필터 버튼
+        filter_btn = ttk.Button(filter_frame, text="필터 적용", command=filter_times)
+        filter_btn.pack(side=LEFT, padx=(0, 10))
+        
+        # 초기 시간표 표시
+        filter_times()
+        
+        # 스크롤바와 캔버스 배치
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # 닫기 버튼
+        ttk.Button(main_frame, text="닫기", 
+                  command=lambda: self._close_time_popup(popup)).pack(pady=20)
+        
+        self.time_popup_opened = True
+        popup.protocol("WM_DELETE_WINDOW", lambda: self._close_time_popup(popup))
 
     def _init_style(self):
         style = ttk.Style()
@@ -260,6 +599,10 @@ class SubwayApp:
     def _close_popup(self, popup):
         self.popup_opened = False
         popup.destroy()
+    
+    def _close_time_popup(self, popup):
+        self.time_popup_opened = False
+        popup.destroy()
 
     def show_station_select_popup(self, station, line):
         if self.popup_opened:
@@ -267,13 +610,20 @@ class SubwayApp:
         self.popup_opened = True
         popup = Toplevel(self.root)
         popup.title(f"{station}역 선택")
-        popup.geometry("380x120")
+        popup.geometry("380x180")
         popup.configure(bg='#f8f9fa')
         popup.update_idletasks()
         x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
         popup.geometry(f"+{x}+{y}")
         ttk.Label(popup, text=f"{station}역 ({line}) 을 출발/도착역으로 설정", style='TLabel').pack(pady=16)
+        
+        # 시간표 버튼 추가
+        time_btn_frame = ttk.Frame(popup, style='TFrame')
+        time_btn_frame.pack(pady=8)
+        ttk.Button(time_btn_frame, text="시간표 보기", 
+                  command=lambda: self.show_time_table_popup(station)).pack(side=LEFT, padx=5)
+        
         btn_frame = ttk.Frame(popup, style='TFrame')
         btn_frame.pack(pady=8)
         ttk.Button(btn_frame, text="출발역으로", style='TButton', command=lambda: self.set_start_station(station, popup)).pack(side=LEFT, padx=10)
@@ -324,6 +674,10 @@ class SubwayApp:
     def find_shortest_route_with_transfer(self, start, end):
         from collections import deque
         station_to_line = {text: line for _, _, text, line in BUTTON_COORDS}
+        
+        # 디버깅 출력 추가
+        print(f"DEBUG: 경로 찾기 시작 - 출발: {start}, 도착: {end}")
+        
         queue = deque()
         visited = dict()  # (역, 호선): 최소 환승횟수
         for line in station_to_line.get(start, '').split('/'):
@@ -339,6 +693,7 @@ class SubwayApp:
                     min_dist = dist
                     min_route = path[:]
                     min_transfer = transfer
+                    print(f"DEBUG: 경로 발견 - {path}")
                 continue
             for next_station in SUBWAY[curr]:
                 next_lines = station_to_line.get(next_station, '').split('/')
@@ -350,7 +705,9 @@ class SubwayApp:
                     visited[state] = next_transfer
                     queue.append((next_station, next_line, path + [next_station], next_transfer, dist + 1))
         if not min_route or min_dist == float('inf') or min_transfer == float('inf'):
+            print(f"DEBUG: 경로를 찾을 수 없습니다.")
             return [], 0, 0
+        print(f"DEBUG: 최종 경로: {min_route}, 거리: {min_dist}, 환승: {min_transfer}")
         return min_route, min_dist, min_transfer
 
     def show_route_popup(self):
@@ -364,10 +721,19 @@ class SubwayApp:
         end_input = self.end_var.get()
         start_valid = start_input in self.station_list
         end_valid = end_input in self.station_list
+        
+        # 디버깅 출력 추가
+        print(f"DEBUG: 입력된 출발역: '{start_input}', 유효성: {start_valid}")
+        print(f"DEBUG: 입력된 도착역: '{end_input}', 유효성: {end_valid}")
+        print(f"DEBUG: self.start: '{self.start}', self.end: '{self.end}'")
+        
         if start_valid:
             self.start = start_input
         if end_valid:
             self.end = end_input
+            
+        print(f"DEBUG: 최종 설정된 출발역: '{self.start}', 도착역: '{self.end}'")
+        
         error_msg = None
         if not start_input or not end_input:
             error_msg = '출발역과 도착역을 모두 입력하세요.'
@@ -539,7 +905,135 @@ class SubwayApp:
                 Label(info_frame, text="회 환승, ", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
                 Label(info_frame, text=f"{actual_total_dist}", font=bold_font, bg='#f8f9fa').pack(side=LEFT)
                 Label(info_frame, text="개의 역을 지나야 합니다.", font=normal_font, bg='#f8f9fa').pack(side=LEFT)
+            # 버튼 프레임 추가
+            button_frame = ttk.Frame(popup, style='TFrame')
+            button_frame.pack(pady=10)
+            
+            # 시간표 보기 버튼 추가
+            def get_next_train_direction(station):
+                input_hour = hour_var.get()
+                input_min = min_var.get()
+                input_time = f"{input_hour}:{input_min}"
+                input_day = day_var.get()
+                try:
+                    input_dt = datetime.strptime(input_time, '%H:%M')
+                except Exception:
+                    return None
+                times = self.get_station_times(station, self.end if station == self.start else self.start)
+                filtered_times = [t for t in times if t['day_type'] == input_day]
+                unique_times = {}
+                for t in filtered_times:
+                    if t['departure_time'] not in unique_times:
+                        unique_times[t['departure_time']] = t
+                valid_times = list(unique_times.values())
+                valid_times.sort(key=lambda t: datetime.strptime(t['departure_time'], '%H:%M'))
+                for t in valid_times:
+                    if datetime.strptime(t['departure_time'], '%H:%M') >= input_dt:
+                        return t['direction']
+                return None
+
+            ttk.Button(button_frame, text='시간표 보기', style='TButton', 
+                      command=lambda: self.show_time_table_popup(self.start, get_next_train_direction(self.start))).pack(side=LEFT, padx=5)
+            
+            # 시간 입력 및 다음 열차 안내 프레임 추가
+            time_frame = ttk.Frame(popup, style='TFrame')
+            time_frame.pack(pady=10)
+            # 시간 콤보박스 분리 (시/분)
+            hour_options = [f"{h:02d}" for h in range(5, 24)]
+            min_options = [f"{m:02d}" for m in range(0, 60)]
+            hour_var = StringVar()
+            min_var = StringVar()
+            hour_combo = ttk.Combobox(time_frame, textvariable=hour_var, values=hour_options, width=4, state='normal')
+            min_combo = ttk.Combobox(time_frame, textvariable=min_var, values=min_options, width=4, state='normal')
+            hour_combo.set(hour_options[0])
+            min_combo.set(min_options[0])
+            ttk.Label(time_frame, text='출발 시각:', style='RouteNormal.TLabel').pack(side=LEFT, padx=5)
+            hour_combo.pack(side=LEFT)
+            hour_combo.bind('<Return>', lambda e: show_next_train())
+            ttk.Label(time_frame, text='시', style='RouteNormal.TLabel').pack(side=LEFT)
+            min_combo.pack(side=LEFT)
+            min_combo.bind('<Return>', lambda e: show_next_train())
+            ttk.Label(time_frame, text='분', style='RouteNormal.TLabel').pack(side=LEFT, padx=(0,5))
+            # 요일 콤보박스
+            day_options = ["평일", "토요일", "일요일"]
+            day_var = StringVar()
+            day_combo = ttk.Combobox(time_frame, textvariable=day_var, values=day_options, width=8, state='normal')
+            day_combo.set(day_options[0])
+            day_combo.bind('<Return>', lambda e: show_next_train())
+            ttk.Label(time_frame, text='요일 선택:', style='RouteNormal.TLabel').pack(side=LEFT, padx=5)
+            day_combo.pack(side=LEFT, padx=5)
+            
+            def show_next_train():
+                input_hour = hour_var.get()
+                input_min = min_var.get()
+                input_time = f"{input_hour}:{input_min}"
+                input_day = day_var.get()
+                print(f"DEBUG: 입력된 시간: '{input_time}', 입력된 요일: '{input_day}'")
+                try:
+                    input_dt = datetime.strptime(input_time, '%H:%M')
+                except Exception as e:
+                    print(f"DEBUG: 시간 파싱 오류: {e}")
+                    result_var.set('시간 형식이 올바르지 않습니다. (예: 08:30)')
+                    return
+                # 출발역 시간표 가져오기 (도착역도 함께 전달)
+                print(f"DEBUG: 출발역: '{self.start}', 도착역: '{self.end}'")
+                times = self.get_station_times(self.start, self.end)
+                print(f"DEBUG: 가져온 시간표 개수: {len(times)}")
+                # 요일 필터 적용
+                filtered_times = [t for t in times if t['day_type'] == input_day]
+                print(f"DEBUG: 요일 필터 후 열차 개수: {len(filtered_times)}")
+                # 출발시간 기준으로 중복 제거
+                unique_times = {}
+                for t in filtered_times:
+                    if t['departure_time'] not in unique_times:
+                        unique_times[t['departure_time']] = t
+                valid_times = list(unique_times.values())
+                valid_times.sort(key=lambda t: datetime.strptime(t['departure_time'], '%H:%M'))
+                # 입력 시간 이후의 첫 열차 찾기
+                next_train = None
+                for t in valid_times:
+                    if datetime.strptime(t['departure_time'], '%H:%M') >= input_dt:
+                        next_train = t
+                        print(f"DEBUG: 다음 열차 찾음: {t['departure_time']}")
+                        break
+                if next_train:
+                    # 도착역 도착시각 구하기 (정확히 도착역 기준)
+                    arrival_time = ''
+                    try:
+                        # 열차번호, 노선명, direction, day_type으로 해당 열차 row 찾기
+                        row = self.time_data[(self.time_data['열차번호'] == next_train['train_id']) &
+                                             (self.time_data['노선명'] == next_train['line']) &
+                                             (self.time_data['운행구간기점명'] + ' → ' + self.time_data['운행구간종점명'] == next_train['direction']) &
+                                             (self.time_data['요일구분'] == next_train['day_type'])].iloc[0]
+                        stations_str = row['운행구간정거장']
+                        arrival_times_str = row['정거장도착시각']
+                        stations = [s.split('-', 1)[1].strip().replace('역', '').strip() if '-' in s else s.strip().replace('역', '').strip() for s in stations_str.split('+')]
+                        if self.end.strip().replace('역', '').strip() in stations:
+                            idx = stations.index(self.end.strip().replace('역', '').strip())
+                            arrival_times = self.parse_time_string(arrival_times_str)
+                            station_code = f"{idx+1:03d}"
+                            arrival_time = arrival_times.get(station_code, '')
+                    except Exception as e:
+                        print(f"DEBUG: 도착역 도착시각 추출 오류: {e}")
+                        arrival_time = ''
+                    if arrival_time:
+                        result_text = f"다음 열차: {next_train['departure_time']} (열차번호: {next_train['train_id']}, 방향: {next_train['direction']}, 요일: {next_train['day_type']})\n예상 도착시간: {arrival_time}"
+                    else:
+                        result_text = f"다음 열차: {next_train['departure_time']} (열차번호: {next_train['train_id']}, 방향: {next_train['direction']}, 요일: {next_train['day_type']})\n예상 도착시간: 정보 없음"
+                    print(f"DEBUG: 결과 텍스트: {result_text}")
+                    result_var.set(result_text)
+                else:
+                    print(f"DEBUG: 입력 시간 이후 출발하는 열차 없음")
+                    result_var.set('입력한 시간 이후 출발하는 열차가 없습니다.')
+            
+            ttk.Button(time_frame, text='다음 열차 안내', style='TButton', command=show_next_train).pack(side=LEFT, padx=5)
+            result_var = StringVar()
+            result_label = ttk.Label(popup, textvariable=result_var, style='RouteNormal.TLabel')
+            result_label.pack(pady=5)
+            
+            # 확인 버튼
             ttk.Button(popup, text='확인', style='TButton', command=lambda: self._close_popup(popup)).pack(pady=10)
+            
             popup.update_idletasks()
             x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (popup.winfo_width() // 2)
             y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (popup.winfo_height() // 2)
