@@ -8,8 +8,25 @@ import sys
 sys.path.append('./SubwayMap')
 from SubwayData import BUTTON_COORDS, SUBWAY
 
+# 전역 변수로 드래그 상태 추적
+is_dragging_global = False
+mouse_start_x = 0
+mouse_start_y = 0
+
 def get_mouse_click_coor(event):
     # """마우스 클릭 시 좌표 값을 출력하고 클립보드에 복사하는 함수"""
+    global is_dragging_global, mouse_start_x, mouse_start_y
+    
+    # 드래그 중이면 좌표 출력하지 않음
+    if is_dragging_global:
+        return
+    
+    # 클릭과 드래그 구분 (5픽셀 이상 움직였으면 드래그로 간주)
+    dx = abs(event.x - mouse_start_x)
+    dy = abs(event.y - mouse_start_y)
+    if dx > 5 or dy > 5:
+        return
+    
     x = event.x
     y = event.y
     coordinates = f"{x}, {y}" # 좌표 문자열 생성
@@ -18,6 +35,9 @@ def get_mouse_click_coor(event):
     root.clipboard_clear()  # 기존 클립보드 내용 삭제
     root.clipboard_append(coordinates) # 새로운 좌표 추가
     print(f"좌표 '{coordinates}'가 클립보드에 복사되었습니다.")
+    
+    # 클릭 후 드래그 상태 초기화
+    is_dragging_global = False
 
 class SubwayApp:
     def __init__(self, root):
@@ -29,6 +49,7 @@ class SubwayApp:
         self.img_max_scale = 3.0
         self.img_drag_start_x = 0
         self.img_drag_start_y = 0
+        self.is_dragging = False  # 드래그 상태 추적
         self.img_btns = []
         self.img_btn_ids = []
         self.routing = {place: {'shortestDist': 0, 'route': [], 'visited': 0} for place in SUBWAY.keys()}
@@ -412,6 +433,23 @@ class SubwayApp:
         self.top_frame = ttk.Frame(self.root, style='TFrame')
         self.top_frame.pack(side=TOP, fill=X, pady=8)
         
+        # 지도 선택 프레임 추가
+        self.map_frame = ttk.Frame(self.top_frame, style='TFrame')
+        self.map_frame.pack(side=TOP, fill=X, pady=4)
+        ttk.Label(self.map_frame, text="지도 선택:", style='TLabel', font=('맑은 고딕', 12, 'bold')).pack(side=LEFT, padx=(0, 5))
+        
+        # 지도 선택을 위한 매핑 딕셔너리
+        self.map_options = {
+            "부산권": "busan_subway.png",
+            "수도권": "sudo_subway.png"
+        }
+        self.map_var = StringVar(value="부산권")
+        self.map_combo = ttk.Combobox(self.map_frame, textvariable=self.map_var, 
+                                     values=list(self.map_options.keys()), 
+                                     font=('맑은 고딕', 11), width=15, state='readonly')
+        self.map_combo.pack(side=LEFT, padx=(0, 10))
+        self.map_combo.bind('<<ComboboxSelected>>', self.on_map_changed)
+        
         # 출발역/도착역 선택 프레임
         self.station_frame = ttk.Frame(self.top_frame, style='TFrame')
         self.station_frame.pack(side=TOP, fill=X, expand=True, pady=8)
@@ -465,7 +503,8 @@ class SubwayApp:
         ttk.Radiobutton(mode_frame, text='최소 환승', variable=self.route_mode_var, value='min_transfer').pack(side=LEFT, padx=4)
 
     def _init_canvas(self):
-        self.img = Image.open("./Image/subway.png")
+        self.current_image_path = "./Image/busan_subway.png"
+        self.img = Image.open(self.current_image_path)
         self.canvas = Canvas(self.root, width=900, height=600, bg='white', highlightthickness=0)
         self.canvas.pack(fill=BOTH, expand=True, padx=10, pady=10)
         self.img_tk = ImageTk.PhotoImage(self.img)
@@ -487,10 +526,14 @@ class SubwayApp:
         self.root.bind("<MouseWheel>", self.on_mousewheel)
         self.canvas.bind('<ButtonPress-1>', self.on_button_press)
         self.canvas.bind('<B1-Motion>', self.on_drag)
+        self.canvas.bind('<ButtonRelease-1>', self.on_button_release)
         self.canvas.bind('<Configure>', self.on_configure)
         # 역 버튼 클릭/드래그 구분 바인딩
         self.canvas.tag_bind('invisible_btn', '<ButtonPress-1>', self.on_btn_press)
         self.canvas.tag_bind('invisible_btn', '<ButtonRelease-1>', self.on_btn_release)
+        
+        # 마우스 클릭 좌표 출력은 root에만 바인딩 (캔버스 드래그와 분리)
+        self.root.bind("<ButtonRelease-1>", get_mouse_click_coor)
 
     def _create_image_buttons(self):
         for x, y, text, line in BUTTON_COORDS:
@@ -560,16 +603,38 @@ class SubwayApp:
         self.update_image(center_x=canvas_x, center_y=canvas_y, scale_from=old_scale)
 
     def on_button_press(self, event):
+        global is_dragging_global, mouse_start_x, mouse_start_y
         self.img_drag_start_x = event.x
         self.img_drag_start_y = event.y
+        mouse_start_x = event.x
+        mouse_start_y = event.y
+        is_dragging_global = False  # 드래그 시작 시 초기화
 
     def on_drag(self, event):
+        global is_dragging_global
+        # 드래그 상태로 설정
+        is_dragging_global = True
+        
         dx = event.x - self.img_drag_start_x
         dy = event.y - self.img_drag_start_y
         self.canvas.move(self.img_id, dx, dy)
         self.img_drag_start_x = event.x
         self.img_drag_start_y = event.y
         self._update_all_img_btns()
+
+    def on_button_release(self, event):
+        global is_dragging_global, mouse_start_x, mouse_start_y
+        
+        # 실제로 드래그였는지 클릭이었는지 판단
+        dx = abs(event.x - mouse_start_x)
+        dy = abs(event.y - mouse_start_y)
+        
+        if dx > 5 or dy > 5:
+            # 드래그였음 - 좌표 출력하지 않음
+            is_dragging_global = True
+        else:
+            # 클릭이었음 - 좌표 출력 허용
+            is_dragging_global = False
 
     def zoom_in(self):
         old_scale = self.img_scale
@@ -1326,10 +1391,42 @@ class SubwayApp:
         """역 이름을 완전히 정규화 (공백, '역', 소문자)"""
         return name.strip().replace('역', '').replace(' ', '').lower()
 
+    def on_map_changed(self, event):
+        """지도 선택이 변경되었을 때 호출되는 이벤트 핸들러"""
+        selected_display = self.map_var.get()
+        selected_map = self.map_options.get(selected_display, "busan_subway.png")
+        new_image_path = f"./Image/{selected_map}"
+        
+        try:
+            # 새 이미지 로드
+            self.current_image_path = new_image_path
+            self.img = Image.open(self.current_image_path)
+            
+            # 현재 스케일과 위치 유지하면서 이미지 업데이트
+            w, h = self.img.size
+            new_w = int(w * self.img_scale)
+            new_h = int(h * self.img_scale)
+            resized = self.img.resize((new_w, new_h), Image.LANCZOS)
+            self.img_tk = ImageTk.PhotoImage(resized)
+            self.canvas.itemconfig(self.img_id, image=self.img_tk)
+            
+            # 이미지 중앙 배치
+            self._place_image_center()
+            self._update_all_img_btns()
+            
+            print(f"지도가 {selected_display}({selected_map})로 변경되었습니다.")
+            
+        except Exception as e:
+            print(f"지도 변경 중 오류 발생: {e}")
+            # 오류 발생 시 원래 이미지로 복원
+            self.map_var.set("부산권")
+            self.current_image_path = "./Image/busan_subway.png"
+            self.img = Image.open(self.current_image_path)
+            self.update_image()
+
 if __name__ == "__main__":
     root = Tk()
     root.title("Subway Map")
     root.geometry("900x700")
     app = SubwayApp(root)
-    root.bind("<Button-1>", get_mouse_click_coor)
     root.mainloop()
