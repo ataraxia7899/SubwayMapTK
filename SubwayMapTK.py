@@ -1412,9 +1412,19 @@ class SubwayApp:
             
             # 이미지 중앙 배치
             self._place_image_center()
-            self._update_all_img_btns()
             
-            print(f"지도가 {selected_display}({selected_map})로 변경되었습니다.")
+            # 지도에 따라 버튼 표시/숨김 처리
+            if selected_map == "busan_subway.png":
+                # 부산권 지도: 버튼들 표시
+                for btn_id in self.img_btn_ids:
+                    self.canvas.itemconfig(btn_id, state='normal')
+                self._update_all_img_btns()
+                print(f"지도가 {selected_display}({selected_map})로 변경되었습니다. (버튼 활성화)")
+            else:
+                # 수도권 지도: 버튼들 숨김
+                for btn_id in self.img_btn_ids:
+                    self.canvas.itemconfig(btn_id, state='hidden')
+                print(f"지도가 {selected_display}({selected_map})로 변경되었습니다. (버튼 비활성화)")
             
         except Exception as e:
             print(f"지도 변경 중 오류 발생: {e}")
