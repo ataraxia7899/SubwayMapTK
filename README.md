@@ -2,31 +2,38 @@
 
 ## 🖥️ 프로젝트 소개
 
-SubwayMapTK는 파이썬 Tkinter와 Pillow를 활용하여 지하철 노선도 이미지를 중심으로 다양한 상호작용 기능(확대/축소, 이동, 좌표 추출, 투명 버튼 등)을 제공하는 데스크탑 GUI 프로젝트입니다.
+SubwayMapTK는 파이썬 Tkinter와 Pillow를 활용하여 지하철 노선도 이미지를 중심으로 다양한 상호작용 기능(확대/축소, 이동, 좌표 추출, 투명 버튼 등)을 제공하는 데스크탑 GUI 프로젝트입니다.  
+**최단 경로, 최소 환승 경로 탐색**과 **역별 시간표 팝업** 기능도 지원합니다.
 
 ## 🛠️ 기술 스택
 
 - **프론트엔드(GUI):** Python Tkinter
 - **이미지 처리:** Pillow (PIL)
-- **기타:** copy 모듈
+- **데이터:** CSV (역별 시간표)
+- **기타:** copy, pandas 등
 
 ## 📂 프로젝트 구조
 
 ```
 📦 SubwayMapTK
 ├── Image/
-│ └── subway.png # 지하철 노선도 이미지 파일
-├── SubwayMapTK.py # 메인 파이썬 GUI 코드
-├── SubwayMap/ # 각 노선별 역 정보(그래프) 파이썬 파일
-│ ├── 1_Orange.py # 1호선(주황) 역 연결 정보
-│ ├── 2_Green.py # 2호선(초록) 역 연결 정보
-│ ├── 3_Brown.py # 3호선(갈색) 역 연결 정보
-│ ├── 4_Blue.py # 4호선(파랑) 역 연결 정보
-│ ├── Busan_Purple.py # 부산김해경전철(보라) 역 연결 정보
-│ ├── EastSea_White.py # 동해선(하양) 역 연결 정보
-│ └── SubwayData.py # SubwayMapTK.py에서 사용하는 통합된 역 정보
-├── .gitignore # Git 버전관리 제외 파일 목록
-└── README.md # 프로젝트 설명 파일
+│   ├── subway.png           # 지하철 노선도 이미지
+│   ├── arrival.png          # 도착 아이콘
+│   ├── departure.png        # 출발 아이콘
+│   └── subway2.jpg          # 예비 노선도 이미지
+├── SubwayMapTK.py           # 메인 파이썬 GUI 코드
+├── SubwayMap/
+│   ├── 1_Orange.py          # 1호선(주황) 역 연결 정보
+│   ├── 2_Green.py           # 2호선(초록) 역 연결 정보
+│   ├── 3_Brown.py           # 3호선(갈색) 역 연결 정보
+│   ├── 4_Blue.py            # 4호선(파랑) 역 연결 정보
+│   ├── Busan_Purple.py      # 부산김해경전철(보라) 역 연결 정보
+│   ├── EastSea_White.py     # 동해선(하양) 역 연결 정보
+│   └── SubwayData.py        # SubwayMapTK.py에서 사용하는 통합된 역 정보
+├── SubwayData/
+│   └── Subway.csv           # 역별 시간표 데이터
+├── .gitignore
+└── README.md
 ```
 
 ## 🏃‍♂️ 설치 및 실행 방법
@@ -34,15 +41,15 @@ SubwayMapTK는 파이썬 Tkinter와 Pillow를 활용하여 지하철 노선도 �
 ### 1. 환경 준비
 
 - Python 3.x 설치
-- Pillow 설치
+- Pillow, pandas 설치
 
 ```
-pip install pillow
+pip install pillow pandas
 ```
 
 ### 2. 실행
 
-- 이미지 파일(`subway.jpg`)과 파이썬 코드(`SubwayMapTK.py`)를 같은 폴더에 둡니다.
+- 이미지 파일(`subway.png`)과 파이썬 코드(`SubwayMapTK.py`)를 같은 폴더에 둡니다.
 - 아래 명령어로 실행합니다.
 
 ```
@@ -56,8 +63,11 @@ python SubwayMapTK.py
 - **이미지 이동:** 마우스 드래그로 지도 이동
 - **중앙 버튼:** GUI 중앙에 고정된 버튼
 - **이미지 내 버튼:** 이미지 특정 좌표에 투명 버튼(사각형 영역) 생성 및 클릭 이벤트 처리
-- **좌표 추출:** 이미지 클릭 시, 실제 이미지 내 좌표값 콘솔 출력
-- **노선 최단 경로 계산:** 내부에 하드코딩된 노선 정보(landscape)를 기반으로, 시작역~도착역(예: 노포→벡스코) 최단 경로 및 거리 계산 결과 콘솔 출력
+- **좌표 추출:** 이미지 클릭 시, 실제 이미지 내 좌표값 콘솔 출력 및 클립보드 복사 (개발용도의 기능)
+- **노선 최단 경로 계산:** 내부 하드코딩된 노선 정보(landscape/SUBWAY)를 기반으로, 시작역~도착역(예: 노포→벡스코) 최단 경로 및 거리 계산 결과 콘솔 출력
+- **최소 환승 경로 탐색:** 환승 횟수가 최소가 되는 경로 탐색 지원 (라디오버튼으로 모드 선택)
+- **역별 시간표 팝업:** 역 버튼 클릭 시 시간표 팝업(요일/방향/시간대 필터 지원, Subway.csv 기반)
+- **출발/도착역 선택:** 콤보박스 또는 지도 클릭으로 출발/도착역 지정 가능
 
 ## 🗄️ 주요 코드 구조
 
@@ -65,8 +75,9 @@ python SubwayMapTK.py
 | ---------------- | ---------------------------------------- |
 | Tkinter          | GUI 및 Canvas, 버튼, 이벤트 처리         |
 | Pillow (ImageTk) | 이미지 로딩, 리사이즈, 표시              |
-| landscape dict   | 역 간 연결 정보(그래프 구조)             |
-| routing dict     | 각 역별 경로 및 거리 저장                |
+| pandas           | CSV 시간표 데이터 로딩 및 처리           |
+| SUBWAY dict      | 역 간 연결 정보(그래프 구조)             |
+| BUTTON_COORDS    | 각 역의 이미지 내 좌표 및 호선 정보      |
 | 이벤트 핸들러    | 마우스 휠, 드래그, 클릭, 창 크기 변경 등 |
 
 <hr>
