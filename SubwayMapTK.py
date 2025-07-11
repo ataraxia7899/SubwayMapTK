@@ -57,7 +57,7 @@ class SubwayApp:
         self.btn_click_start_x = 0
         self.btn_click_start_y = 0
         self.btn_click_candidate_idx = None
-        # 역 목록 생성
+        # 역 목록 생성 (부산권 기준)
         self.station_list = list(SUBWAY.keys())
         self.station_list.sort()
         
@@ -1413,18 +1413,32 @@ class SubwayApp:
             # 이미지 중앙 배치
             self._place_image_center()
             
-            # 지도에 따라 버튼 표시/숨김 처리
+            # 지도에 따라 버튼 표시/숨김 처리 및 검색 목록 업데이트
             if selected_map == "busan_subway.png":
-                # 부산권 지도: 버튼들 표시
+                # 부산권 지도: 버튼들 표시, 부산권 역 목록 사용
                 for btn_id in self.img_btn_ids:
                     self.canvas.itemconfig(btn_id, state='normal')
                 self._update_all_img_btns()
-                print(f"지도가 {selected_display}({selected_map})로 변경되었습니다. (버튼 활성화)")
+                
+                # 부산권 역 목록으로 검색 콤보박스 업데이트
+                self.station_list = list(SUBWAY.keys())
+                self.station_list.sort()
+                self.start_combo['values'] = self.station_list
+                self.end_combo['values'] = self.station_list
+                
+                print(f"지도가 {selected_display}({selected_map})로 변경되었습니다. (버튼 활성화, 부산권 역 목록)")
             else:
-                # 수도권 지도: 버튼들 숨김
+                # 수도권 지도: 버튼들 숨김, 검색 비활성화
                 for btn_id in self.img_btn_ids:
                     self.canvas.itemconfig(btn_id, state='hidden')
-                print(f"지도가 {selected_display}({selected_map})로 변경되었습니다. (버튼 비활성화)")
+                
+                # 수도권 지도에서는 검색 콤보박스 비활성화
+                self.start_combo['values'] = []
+                self.end_combo['values'] = []
+                self.start_var.set('')
+                self.end_var.set('')
+                
+                print(f"지도가 {selected_display}({selected_map})로 변경되었습니다. (버튼 비활성화, 검색 비활성화)")
             
         except Exception as e:
             print(f"지도 변경 중 오류 발생: {e}")
