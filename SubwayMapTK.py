@@ -27,14 +27,58 @@ def get_mouse_click_coor(event):
     if dx > 5 or dy > 5:
         return
     
-    x = event.x
-    y = event.y
-    coordinates = f"{x}, {y}" # 좌표 문자열 생성
-    print(f"클릭 좌표: {coordinates}")
-    # 클립보드에 복사
-    root.clipboard_clear()  # 기존 클립보드 내용 삭제
-    root.clipboard_append(coordinates) # 새로운 좌표 추가
-    print(f"좌표 '{coordinates}'가 클립보드에 복사되었습니다.")
+    # 이미지 내부 좌표로 변환 (스케일과 드래그 고려)
+    try:
+        # 캔버스 좌표
+        canvas_x = event.x
+        canvas_y = event.y
+        
+        # 현재 이미지의 캔버스 좌표 가져오기
+        img_cx, img_cy = app.canvas.coords(app.img_id)
+        
+        # 이미지 크기
+        w, h = app.img.size
+        
+        # 이미지의 실제 크기 (스케일 적용)
+        scaled_w = int(w * app.img_scale)
+        scaled_h = int(h * app.img_scale)
+        
+        # 이미지의 왼쪽 상단 좌표 계산
+        img_left = img_cx - scaled_w // 2
+        img_top = img_cy - scaled_h // 2
+        
+        # 캔버스 좌표를 이미지 내부 좌표로 변환
+        img_x = (canvas_x - img_left) / app.img_scale
+        img_y = (canvas_y - img_top) / app.img_scale
+        
+        # 좌표가 이미지 범위 내에 있는지 확인
+        if 0 <= img_x <= w and 0 <= img_y <= h:
+            coordinates = f"{int(img_x)}, {int(img_y)}"  # 정수로 변환
+            print(f"=== 좌표 계산 결과 ===")
+            print(f"클릭 좌표 (이미지 기준): {coordinates}")
+            print(f"캔버스 좌표: {canvas_x}, {canvas_y}")
+            print(f"이미지 중심: {img_cx}, {img_cy}")
+            print(f"이미지 왼쪽상단: {img_left}, {img_top}")
+            print(f"이미지 크기: {w} x {h}")
+            print(f"스케일된 크기: {scaled_w} x {scaled_h}")
+            print(f"스케일: {app.img_scale}")
+            print(f"=====================")
+            
+            # 클립보드에 복사
+            root.clipboard_clear()  # 기존 클립보드 내용 삭제
+            root.clipboard_append(coordinates) # 새로운 좌표 추가
+            print(f"좌표 '{coordinates}'가 클립보드에 복사되었습니다.")
+        else:
+            print(f"클릭 좌표가 이미지 범위를 벗어남: {int(img_x)}, {int(img_y)}")
+            print(f"이미지 범위: 0 ~ {w}, 0 ~ {h}")
+            
+    except Exception as e:
+        print(f"좌표 계산 오류: {e}")
+        # 오류 시 기본 좌표 출력
+        coordinates = f"{event.x}, {event.y}"
+        print(f"기본 좌표: {coordinates}")
+        root.clipboard_clear()
+        root.clipboard_append(coordinates)
     
     # 클릭 후 드래그 상태 초기화
     is_dragging_global = False
@@ -532,8 +576,8 @@ class SubwayApp:
         self.canvas.tag_bind('invisible_btn', '<ButtonPress-1>', self.on_btn_press)
         self.canvas.tag_bind('invisible_btn', '<ButtonRelease-1>', self.on_btn_release)
         
-        # 마우스 클릭 좌표 출력은 root에만 바인딩 (캔버스 드래그와 분리)
-        self.root.bind("<ButtonRelease-1>", get_mouse_click_coor)
+        # 마우스 클릭 좌표 출력은 캔버스에 바인딩 (더 정확한 좌표 계산)
+        self.canvas.bind("<ButtonRelease-1>", get_mouse_click_coor)
 
     def _create_image_buttons(self):
         for x, y, text, line in BUTTON_COORDS:
